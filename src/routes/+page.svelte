@@ -1,13 +1,14 @@
 <script>
     import { app, auth } from '$lib/FireBase.js';
-    import { getFirestore, collection, getDocs } from 'firebase/firestore';
-    import { getAuth, signInWithEmailAndPassword, signOut } from "firebase/auth";
+    import { getFirestore, collection, getDocs, orderBy, query, where } from 'firebase/firestore';
+    import { signInWithEmailAndPassword, signOut } from "firebase/auth";
     import { onMount } from 'svelte';
 
     let email = '';
     let password = '';
     let loggedIn = false;
     let customers = [];
+    let jobs = [];
     let selectedCustomer = '';
     
     const db = getFirestore(app);
@@ -40,8 +41,16 @@
         querySnapshot.forEach((doc) => {
             customers = [...customers, doc.data()];
         });
-    }
+    }   
 
+    async function getJobsFromCollection() {
+        const q = query(collection(db, "Jobs"), where("archiv", "==", false));
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach((doc) => {
+            jobs = [...jobs, doc.data()];
+            jobs.sort((a, b) => (b.jobstart) - (a.jobstart));
+        });
+    }
  
 
 </script>
@@ -63,6 +72,24 @@
 <hr>
 <button onclick={()=> getCustomersFromCollection()}>Get Customers</button>
 <hr>
+<button onclick={()=> getJobsFromCollection()}>Get Jobs</button>
+<hr>
+<ul>
+    {#each jobs as job}
+        <li>
+            <div class="joblist">
+                <p>{new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                <p>{job.customer}</p>
+                <p>{job.jobname}</p>
+                <p>{job.quantity}</p>
+                <p>{job.details}</p>
+                <p>{job.amount}</p>
+                <p>{job.producer}</p>
+            </div>
+        </li>
+    {/each}
+</ul>
+<!--
 <ul>
     {#each customers as customer}
         <li>{customer.companyName}</li>
@@ -79,7 +106,20 @@
 {#if selectedCustomer}
     <h2>Selected Customer: {selectedCustomer}</h2>
 {/if}
+-->
 
+<style>
+    li {
+        list-style-type: none;
+    }
 
+    .joblist {
+        display: flex;
+       gap: 10px;
+        border: 1px solid black;
+        padding: 10px;
+        margin: 5px;
+    }
+</style>
 
 
