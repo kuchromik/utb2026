@@ -1,15 +1,15 @@
 <script>
     import { app, auth } from '$lib/FireBase.js';
-    import { getFirestore, collection, getDocs, orderBy, query, where } from 'firebase/firestore';
+    import { getFirestore, collection, getDocs, orderBy, query, where, doc, updateDoc } from 'firebase/firestore';
     import { signInWithEmailAndPassword, signOut } from "firebase/auth";
     import { onMount } from 'svelte';
 
-    let email = '';
-    let password = '';
-    let loggedIn = false;
-    let customers = [];
-    let jobs = [];
-    let selectedCustomer = '';
+    let email = $state('');
+    let password = $state('');
+    let loggedIn = $state(false);
+    let customers = $state([]);
+    let jobs = $state([]);
+    let selectedCustomer = $state('');
     
     const db = getFirestore(app);
     
@@ -18,8 +18,6 @@
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
-            console.log("User signed in");
-            console.log(user);
             loggedIn = true;
         } catch (error) {
             console.error(error.code, error.message);
@@ -35,22 +33,32 @@
             console.error(error.code, error.message);
         }
     }
-
+    /*
     async function getCustomersFromCollection() {
         const querySnapshot = await getDocs(collection(db, "customer"));
         querySnapshot.forEach((doc) => {
             customers = [...customers, doc.data()];
         });
     }   
-
+    */
     async function getJobsFromCollection() {
         const q = query(collection(db, "Jobs"), where("archiv", "==", false));
         const querySnapshot = await getDocs(q);
         querySnapshot.forEach((doc) => {
+            console.log(doc.id, " => ", doc.data());
             jobs = [...jobs, doc.data()];
             jobs.sort((a, b) => (b.jobstart) - (a.jobstart));
         });
     }
+
+    async function togglePaperReady(job) {
+        const jobRef = doc(db, "Jobs", job.id);
+        await updateDoc(jobRef, {
+            paper_ready: !job.paper_ready
+        });
+        $inspect(job);
+    }
+
  
 
 </script>
@@ -70,7 +78,7 @@
 <hr>
 <button onclick={()=> handleLogOut()}>Sign Out</button>
 <hr>
-<button onclick={()=> getCustomersFromCollection()}>Get Customers</button>
+<button onclick={()=> getCustomersFromCollection()}>Get Customers, inaktiv!</button>
 <hr>
 <button onclick={()=> getJobsFromCollection()}>Get Jobs</button>
 <hr>
@@ -78,13 +86,19 @@
     {#each jobs as job}
         <li>
             <div class="joblist">
-                <p>{new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}</p>
-                <p>{job.customer}</p>
-                <p>{job.jobname}</p>
-                <p>{job.quantity}</p>
-                <p>{job.details}</p>
-                <p>{job.amount}</p>
-                <p>{job.producer}</p>
+                <div class="jobstart">
+                    <p>{new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                </div>
+                <div class="jobID"><p>{job.id}</p></div>
+                <div class="customer"><p>{job.customer}</p></div>
+                <div class="jobname"><p>{job.jobname}</p></div>
+                <div class="quantity"><p>{job.quantity}</p></div>
+                <div class="details"><p>{job.details}</p></div>
+                <div class="amount"><p>{job.amount}</p></div>
+                <div class="producer"><p>{job.producer}</p></div>
+                <div class="paper-ready">
+                    <label><input type="checkbox" name="Papier?" bind:checked={job.paper_ready} disabled={!(job.producer === 'chr' || job.producer === 'doe')} onchange={() => togglePaperReady(job)}/>Papier?</label>
+                </div>
             </div>
         </li>
     {/each}
@@ -115,10 +129,39 @@
 
     .joblist {
         display: flex;
-       gap: 10px;
+        align-items: center;
+        gap: 10px;
         border: 1px solid black;
         padding: 10px;
         margin: 5px;
+    }
+
+    .jobstart {
+        flex: 1;
+    }
+    .jobID {
+        flex: 1;
+    }
+    .customer {
+        flex: 2;
+    }
+    .jobname {
+        flex: 2;
+    }
+    .quantity {
+        flex: 1;
+    }
+    .details {
+        flex: 3;
+    }
+    .amount {
+        flex: 1;
+    }
+    .producer {
+        flex: 1;
+    }
+    .paper-ready {
+        flex: 1;
     }
 </style>
 
