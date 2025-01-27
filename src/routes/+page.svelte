@@ -1,6 +1,6 @@
 <script>
     import { app, auth } from '$lib/FireBase.js';
-    import { getFirestore, collection, getDocs, orderBy, query, where, doc, updateDoc } from 'firebase/firestore';
+    import { getFirestore, collection, getDocs, onSnapshot, query, where, doc, updateDoc } from 'firebase/firestore';
     import { signInWithEmailAndPassword, signOut } from "firebase/auth";
     import { onMount } from 'svelte';
 
@@ -41,6 +41,7 @@
         });
     }   
     */
+   /*
     async function getJobsFromCollection() {
         jobs = [];
         const q = query(collection(db, "Jobs"), where("archiv", "==", false));
@@ -52,35 +53,50 @@
         });
         jobs.sort((a, b) => (b.jobstart) - (a.jobstart));
     }
+    */
+    async function getJobsFromCollection() {
+        jobs = [];
+        const q = query(collection(db, "Jobs"), where("archiv", "==", false));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            jobs = [];
+            querySnapshot.forEach((doc) => {
+                let ID = doc.id;
+                let job = { id: ID, ...doc.data() };
+                jobs = [...jobs, job];
+            });
+            jobs.sort((a, b) => (b.jobstart) - (a.jobstart));
+        });
+    }
 
     async function toggleSomethingIsReady(whatsIsReady, ID) {
         const jobRef = doc(db, "Jobs", ID);
         if (whatsIsReady === "paper") {
             await updateDoc(jobRef, {
-                paper_ready: !ID.paper_ready
+                paper_ready: !(ID.paper_ready)
             });
             console.log(whatsIsReady, "status geändert on Firestore");
         } else if (whatsIsReady === "plates") {
             await updateDoc(jobRef, {
-                plates_ready: !ID.plates_ready
+                plates_ready: !(ID.plates_ready)
             });
             console.log(whatsIsReady, "status geändert on Firestore");
         }
         else if (whatsIsReady === "print") {
             await updateDoc(jobRef, {
-                print_ready: !ID.print_ready
+                print_ready: !(ID.print_ready)
             });
             console.log(whatsIsReady, "status geändert on Firestore");
         }
         else if (whatsIsReady === "invoice") {
+            console.log(ID.invoice_ready);
             await updateDoc(jobRef, {
-                invoice_ready: !ID.invoice_ready
+                invoice_ready: !(ID.invoice_ready)
             });
             console.log(whatsIsReady, "status geändert on Firestore");
         }
         else if (whatsIsReady === "payed") {
             await updateDoc(jobRef, {
-                payed: !ID.payed
+                payed: !(ID.payed)
             });
             console.log(whatsIsReady, "status geändert on Firestore");
         }
@@ -117,7 +133,7 @@
                 <div class="jobstart">
                     <small>{new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}</small>
                 </div>
-                <!--<div class="jobID"><small>{job.id}</small></div>-->
+                <div class="jobID"><small>{job.id}</small></div>
                 <div class="customer"><p>{job.customer}</p></div>
                 <div class="jobname"><p>{job.jobname}</p></div>
                 <div class="quantity"><p>{job.quantity}</p></div>
@@ -125,19 +141,19 @@
                 <div class="amount"><p>{job.amount}</p></div>
                 <div class="producer"><p>{job.producer}</p></div>
                 <div class="ready">
-                    <label>Papier?<input type="checkbox" name="Papier?" bind:checked={job.paper_ready} disabled={!(job.producer === 'chr' || job.producer === 'doe')} onchange={() => toggleSomethingIsReady("paper", job.id)}/></label>
+                    <label>Papier?<input type="checkbox" name="Papier?" bind:checked={job.paper_ready} disabled={!(job.producer === 'chr' || job.producer === 'doe')} onclick={() => toggleSomethingIsReady("paper", job.id)}/></label>
                 </div>
                 <div class="ready">
-                    <label>Platten?<input type="checkbox" name="Platten?" bind:checked={job.plates_ready} disabled={!(job.producer === 'chr')} onchange={() => toggleSomethingIsReady("plates", job.id)}/></label>
+                    <label>Platten?<input type="checkbox" name="Platten?" bind:checked={job.plates_ready} disabled={!(job.producer === 'chr')} onclick={() => toggleSomethingIsReady("plates", job.id)}/></label>
                 </div>
                 <div class="ready">
-                    <label>Druck?<input type="checkbox" name="Druck?" bind:checked={job.print_ready} disabled={!(job.producer === 'chr' || job.producer === 'doe')} onchange={() => toggleSomethingIsReady("print", job.id)}/></label>
+                    <label>Druck?<input type="checkbox" name="Druck?" bind:checked={job.print_ready} disabled={!(job.producer === 'chr' || job.producer === 'doe')} onclick={() => toggleSomethingIsReady("print", job.id)}/></label>
                 </div>
                 <div class="ready">
-                    <label>Rechnung?<input type="checkbox" name="Platten?" bind:checked={job.invoice_ready} disabled={!(true)} onchange={() => toggleSomethingIsReady("invoice", job.id)}/></label>
+                    <label>Rechnung?<input type="checkbox" name="Platten?" bind:checked={job.invoice_ready} disabled={!(true)} onclick={() => toggleSomethingIsReady("invoice", job.id)}/></label>
                 </div>
                 <div class="ready">
-                    <label>Zahlung?<input type="checkbox" name="Zahlung?" bind:checked={job.payed_ready} disabled={!(true)} onchange={() => toggleSomethingIsReady("payed", job.id)}/></label>
+                    <label>Zahlung?<input type="checkbox" name="Zahlung?" bind:checked={job.payed_ready} disabled={!(true)} onclick={() => toggleSomethingIsReady("payed", job.id)}/></label>
                 </div>
                 
             </div>
