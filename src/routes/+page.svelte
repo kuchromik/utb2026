@@ -1,6 +1,6 @@
 <script>
     import { app, auth } from '$lib/FireBase.js';
-    import { getFirestore, collection, getDocs, onSnapshot, query, where, doc, updateDoc } from 'firebase/firestore';
+    import { getFirestore, collection, onSnapshot, query, where, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
     import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 
     let email = $state('');
@@ -8,7 +8,7 @@
     let loggedIn = $state(false);
     let customers = $state([]);
     let jobs = $state([]);
-    let selectedCustomer = $state('');
+    
     
     const db = getFirestore(app);
 
@@ -21,6 +21,7 @@
             user = userCredential.user.email;
             loggedIn = true;
             getJobsFromCollection();
+            getCustomersFromCollection();
         } catch (error) {
             console.error(error.code, error.message);
         }
@@ -38,14 +39,19 @@
             console.error(error.code, error.message);
         }
     }
-    /*
+    
     async function getCustomersFromCollection() {
-        const querySnapshot = await getDocs(collection(db, "customer"));
-        querySnapshot.forEach((doc) => {
-            customers = [...customers, doc.data()];
+        customers = [];
+        const q = query(collection(db, "customer"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            customers = [];
+            querySnapshot.forEach((doc) => {
+                customers = [...customers, doc.data()];
+            });
+            customers.sort((a, b) => (a.companyName > b.companyName) ? 1 : -1);
         });
-    }   
-    */
+    }
+
     async function getJobsFromCollection() {
         jobs = [];
         const q = query(collection(db, "Jobs"), where("archiv", "==", false));
@@ -96,6 +102,84 @@
         
     }
 
+    let newCustomer = $state('');
+    let newJobname = $state('');
+    let newQuantity = $state(0);
+    let newDetails = $state('');
+    let newAmount = $state(0);
+    let newProducer = $state('');
+
+    async function addNewJob() {
+        
+        const colRef = doc(collection(db, "Jobs"));
+        await setDoc(colRef,{
+            jobstart: Date.now() / 1000,
+            customer: newCustomer,
+            jobname: newJobname,
+            quantity: newQuantity,
+            details: newDetails,
+            amount: newAmount,
+            producer: newProducer,
+            paper_ready: false,
+            plates_ready: false,
+            print_ready: false,
+            invoice_ready: false,
+            payed_ready: false,
+            archiv: false
+        });
+        console.log("Document written with ID: ", colRef.id);
+        newCustomer = '';
+        newJobname = '';
+        newQuantity = 0;
+        newDetails = '';
+        newAmount = 0;
+        newProducer = '';
+    }
+
+    function archiveJob(ID) {
+        if (!confirm("Diesen Auftrag wirklich archivieren?")) {
+            return;
+        }
+        const jobRef = doc(db, "Jobs", ID);
+        updateDoc(jobRef, {
+            archiv: true
+        });
+    }
+
+    function deleteJob(ID) {
+        if (!confirm("Diesen Auftrag wirklich löschen?")) {
+            return;
+        }
+        const jobRef = doc(db, "Jobs", ID);
+        deleteDoc(jobRef);
+    }
+
+    function clearNewJob() {
+        newCustomer = '';
+        newJobname = '';
+        newQuantity = 0;
+        newDetails = '';
+        newAmount = 0;
+        newProducer = '';
+    }
+    function handleNewCustomer() {
+        if (newCustomer === "Neuer Kunde") {
+            let newCustomerName = prompt("Bitte geben Sie den Namen des neuen Kunden ein:");
+            let newCustomerName2 = prompt("Bitte geben Sie den zweiten Namen des neuen Kunden ein:");
+            let newCustomerAddress1 = prompt("Bitte geben Sie die erste Adresse des neuen Kunden ein:");
+            let newCustomerAddress2 = prompt("Bitte geben Sie die zweite Adresse des neuen Kunden ein:");
+            if (newCustomerName != null && newCustomerAddress1 != null && newCustomerAddress2 != null) {
+            const colRef = doc(collection(db, "customer"));
+            setDoc(colRef, {
+                companyName: newCustomerName,
+                companyName2: newCustomerName2,
+                address1: newCustomerAddress1,
+                address2: newCustomerAddress2
+            });
+            //newCustomer = newCustomerName;
+            }
+        }
+    }
 </script>
 
 <main>
@@ -120,6 +204,38 @@
     </div>
 </div>
 <hr>
+{#if loggedIn}
+   
+<h2>Neuer Auftrag:</h2>
+<div class="newJob">
+   
+    <select onchange={handleNewCustomer} bind:value={newCustomer}>
+        <option value="" disabled selected>Wählen Sie einen Kunden</option>
+        <option value="Neuer Kunde">Neuer Kunde</option>
+        {#each customers as customer}
+            <option value={customer.companyName}>{customer.companyName}</option>
+        {/each}
+    </select>
+    <input class="broadField" type="text" placeholder="Auftrag" bind:value={newJobname}/>
+    <input class="smallField"type="number" placeholder="Menge" bind:value={newQuantity}/>
+    <input class="broadField" type="text" placeholder="Details" bind:value={newDetails}/>
+    <input class="smallField" type="number" placeholder="Betrag" bind:value={newAmount}/>
+    <select bind:value={newProducer}>
+        <option value="" disabled selected>Produzent</option>
+        <option value="chr">Chromik Offsetdruck</option>
+        <option value="doe">Chromik Digitaldruck</option>
+        <option value="pwd">Printworld</option>
+        <option value="sax">Saxoprint</option>
+        <option value="wmd">wir-machen-druck</option>
+        <option value="sil">Silberdruck</option>
+        <option value="pin">Pinguin</option>
+        <option value="hee">Heenemann</option>
+        <option value="son">Sonstige</option>
+    </select>
+    <button onclick={clearNewJob}>Felder löschen</button>
+    <button onclick={addNewJob}>Auftrag anlegen</button>
+</div>
+<h2>{jobs.length} aktive Aufträge:</h2>
 <ul>
     {#each jobs as job, index}
         <li>
@@ -162,12 +278,15 @@
                 <div class="ready">
                     <label>Zahlung?<input type="checkbox" name="Zahlung?" bind:checked={job.payed_ready} onclick={() => toggleSomethingIsReady("payed", job.id, job.payed_ready)}/></label>
                 </div>
-                
+                <button style="background-color: DeepSkyBlue; height: 2rem;"onclick={() => archiveJob(job.id)}>Archivieren</button>
+                <button style="background-color: crimson; height: 2rem;" onclick={() => deleteJob(job.id)}>Löschen</button>
             </div>
         </li>
     {/each}
 </ul>
+{/if}
 </main>
+
 <!--
 <ul>
     {#each customers as customer}
@@ -267,6 +386,23 @@
     }
     .ready {
         flex: 1;
+    }
+
+    .newJob {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background-color: lightgreen;
+        border: 1px solid grey;
+        border-radius: 5px;
+        padding: 10px;
+        margin-top: 10px;
+    }
+    .smallField {
+        width: 50px;
+    }
+    .broadField {
+        width: 30%;
     }
 </style>
 
