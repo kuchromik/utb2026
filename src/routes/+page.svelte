@@ -6,14 +6,13 @@
     let email = $state('');
     let password = $state('');
     let loggedIn = $state(false);
+    let showArchiv = $state(false);
     let customers = $state([]);
     let jobs = $state([]);
-    
-    
-    const db = getFirestore(app);
-
+    let archivJobs = $state([]);
     let user = $state();
     
+    const db = getFirestore(app);
 
     async function handleSignIn() {
         try {
@@ -32,9 +31,13 @@
             await signOut(auth);
             console.log("User signed out");
             loggedIn = false;
+            showArchiv = false;
+            customers = [];
             jobs = [];
             email = '';
             password = '';
+            user = '';
+            archivJobs = [];
         } catch (error) {
             console.error(error.code, error.message);
         }
@@ -106,7 +109,7 @@
     let newJobname = $state('');
     let newQuantity = $state(0);
     let newDetails = $state('');
-    let newAmount = $state(0);
+    let newAmount = $state(0.00);
     let newProducer = $state('');
 
     async function addNewJob() {
@@ -169,142 +172,162 @@
             let newCustomerAddress1 = prompt("Bitte geben Sie die erste Adresse des neuen Kunden ein:");
             let newCustomerAddress2 = prompt("Bitte geben Sie die zweite Adresse des neuen Kunden ein:");
             if (newCustomerName != null && newCustomerAddress1 != null && newCustomerAddress2 != null) {
-            const colRef = doc(collection(db, "customer"));
-            setDoc(colRef, {
-                companyName: newCustomerName,
-                companyName2: newCustomerName2,
-                address1: newCustomerAddress1,
-                address2: newCustomerAddress2
-            });
-            //newCustomer = newCustomerName;
+                const colRef = doc(collection(db, "customer"));
+                setDoc(colRef, {
+                    companyName: newCustomerName,
+                    companyName2: newCustomerName2,
+                    address1: newCustomerAddress1,
+                    address2: newCustomerAddress2
+                });
             }
         }
+    }
+
+    function getJobFromArchiv(customer) {
+        archivJobs = [];
+        const q = query(collection(db, "Jobs"), where("archiv", "==", true), where("customer", "==", customer));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            archivJobs = [];
+            querySnapshot.forEach((doc) => {
+                let ID = doc.id;
+                let archivJob = { id: ID, ...doc.data() };
+                archivJobs = [...archivJobs, archivJob];
+            });
+            archivJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
+        });
+        showArchiv = true;
     }
 </script>
 
 <main>
+    <h1 class="headline">Welcome to UTB2026</h1>
 
-<h1 class="headline">Welcome to UTB2026</h1>
-
-<div class = "login">
-    {#if !loggedIn}
-        <input type="email" bind:value={email} placeholder="Email" />
-        <input type="password" bind:value={password} placeholder="Password" />
-   
-        <button onclick={handleSignIn}>Sign In</button>
-    {:else}
-        <button onclick={()=> handleLogOut()}>Sign Out</button>
-    {/if}
-    <div>
-        {#if loggedIn}
-            <h2 style="color: darkgreen;">Logged as {user}</h2>
+    <div class = "login">
+        {#if !loggedIn}
+            <input type="email" bind:value={email} placeholder="Email" />
+            <input type="password" bind:value={password} placeholder="Password" />
+    
+            <button onclick={handleSignIn}>Sign In</button>
         {:else}
-            <h2 style="color: lightcoral;">No User logged</h2>
+            <button onclick={()=> handleLogOut()}>Sign Out</button>
         {/if}
+        <div>
+            {#if loggedIn}
+                <h2 style="color: darkgreen;">Logged as {user}</h2>
+            {:else}
+                <h2 style="color: lightcoral;">No User logged</h2>
+            {/if}
+        </div>
     </div>
-</div>
-<hr>
-{#if loggedIn}
-   
-<h2>Neuer Auftrag:</h2>
-<div class="newJob">
-   
-    <select onchange={handleNewCustomer} bind:value={newCustomer}>
-        <option value="" disabled selected>Wählen Sie einen Kunden</option>
-        <option value="Neuer Kunde">Neuer Kunde</option>
-        {#each customers as customer}
-            <option value={customer.companyName}>{customer.companyName}</option>
-        {/each}
-    </select>
-    <input class="broadField" type="text" placeholder="Auftrag" bind:value={newJobname}/>
-    <input class="smallField"type="number" placeholder="Menge" bind:value={newQuantity}/>
-    <input class="broadField" type="text" placeholder="Details" bind:value={newDetails}/>
-    <input class="smallField" type="number" placeholder="Betrag" bind:value={newAmount}/>
-    <select bind:value={newProducer}>
-        <option value="" disabled selected>Produzent</option>
-        <option value="chr">Chromik Offsetdruck</option>
-        <option value="doe">Chromik Digitaldruck</option>
-        <option value="pwd">Printworld</option>
-        <option value="sax">Saxoprint</option>
-        <option value="wmd">wir-machen-druck</option>
-        <option value="sil">Silberdruck</option>
-        <option value="pin">Pinguin</option>
-        <option value="hee">Heenemann</option>
-        <option value="son">Sonstige</option>
-    </select>
-    <button onclick={clearNewJob}>Felder löschen</button>
-    <button onclick={addNewJob}>Auftrag anlegen</button>
-</div>
-<h2>{jobs.length} aktive Aufträge:</h2>
-<ul>
-    {#each jobs as job, index}
-        <li>
-            <div class="joblist {index % 2 === 0 ? 'secondRow' : ''}">
-                <div class="jobstart">
-                    <p>{new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}</p>
-                </div>
-                <!--<div class="jobID"><p>{job.id}</p></div>-->
-                <div class="customer"><p><strong>{job.customer}</strong></p></div>
-                <div class="jobname"><p>{job.jobname}</p></div>
-                <div class="quantity"><p><strong>{job.quantity}</strong></p></div>
-                <div class="details"><p>{job.details}</p></div>
-                <div class="amount"><p><strong>{job.amount}</strong></p></div>
-                <div class="producer"><p>{job.producer}</p></div>
-                <div class="ready">
-                    {#if (job.producer === 'chr' || job.producer === 'doe')}
-                        <label>Papier?<input type="checkbox" name="Papier?" bind:checked={job.paper_ready} onclick={() => toggleSomethingIsReady("paper", job.id, job.paper_ready)}/></label>
-                    {:else}
-                        <input type="hidden" name="Papier?"/>
-                    {/if}
-                </div>
-                <div class="ready">
-                    {#if (job.producer === 'chr')}
-                        <label>Platten?<input type="checkbox" name="Platten?" bind:checked={job.plates_ready} onclick={() => toggleSomethingIsReady("plates", job.id, job.plates_ready)}/></label>
-                    {:else}
-                        <input type="hidden" name="Platten?"/>
-                    {/if}
-                </div>
+    <hr>
 
-                <div class="ready">
-                    {#if (job.producer === 'chr' || job.producer === 'doe')}
-                        <label>Druck?<input type="checkbox" name="Druck?" bind:checked={job.print_ready} onclick={() => toggleSomethingIsReady("print", job.id, job.print_ready)}/></label>
-                    {:else}
-                        <input type="hidden" name="Druck?"/>
-                    {/if}
-                </div>
-                <div class="ready">
-                    <label>Rechnung?<input type="checkbox" name="Platten?" bind:checked={job.invoice_ready} onclick={() => toggleSomethingIsReady("invoice", job.id, job.invoice_ready)}/></label>
-                </div>
-                <div class="ready">
-                    <label>Zahlung?<input type="checkbox" name="Zahlung?" bind:checked={job.payed_ready} onclick={() => toggleSomethingIsReady("payed", job.id, job.payed_ready)}/></label>
-                </div>
-                <button style="background-color: DeepSkyBlue; height: 2rem;"onclick={() => archiveJob(job.id)}>Archivieren</button>
-                <button style="background-color: crimson; height: 2rem;" onclick={() => deleteJob(job.id)}>Löschen</button>
-            </div>
-        </li>
-    {/each}
-</ul>
-{/if}
+    {#if loggedIn && !showArchiv}
+    
+        <h2>Neuer Auftrag:</h2>
+        <div class="newJob">
+            
+            <select onchange={handleNewCustomer} bind:value={newCustomer}>
+                <option value="" disabled selected>Wählen Sie einen Kunden</option>
+                <option value="Neuer Kunde">Neuer Kunde</option>
+                {#each customers as customer}
+                    <option value={customer.companyName}>{customer.companyName}</option>
+                {/each}
+            </select>
+            
+            <input class="broadField" type="text" placeholder="Auftrag" bind:value={newJobname}/>
+            <input class="smallField"type="number" placeholder="Menge" bind:value={newQuantity}/>
+            <input class="broadField" type="text" placeholder="Details" bind:value={newDetails}/>
+            <input class="smallField" type="number" placeholder="Betrag" bind:value={newAmount}/>
+            <select bind:value={newProducer}>
+                <option value="" disabled selected>Produzent</option>
+                <option value="chr">Chromik Offsetdruck</option>
+                <option value="doe">Chromik Digitaldruck</option>
+                <option value="pwd">Printworld</option>
+                <option value="sax">Saxoprint</option>
+                <option value="wmd">wir-machen-druck</option>
+                <option value="sil">Silberdruck</option>
+                <option value="pin">Pinguin</option>
+                <option value="hee">Heenemann</option>
+                <option value="son">Sonstige</option>
+            </select>
+            <button onclick={clearNewJob}>Felder löschen</button>
+            <button onclick={addNewJob}>Auftrag anlegen</button>
+        </div>
+        <h2>Archiv:</h2>
+        <select onchange={getJobFromArchiv} bind:value={newCustomer}>
+            <option value="" disabled selected>Wählen Sie einen Kunden</option>
+            {#each customers as customer}
+                <option value={customer.companyName}>{customer.companyName}</option>
+            {/each}
+        <h2>{jobs.length} aktive Aufträge:</h2>
+        <ul>
+            {#each jobs as job, index}
+                <li>
+                    <div class="joblist {index % 2 === 0 ? 'secondRow' : ''}">
+                        <div class="jobstart">
+                            <p>{new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                        </div>
+                        <div class="customer"><p><strong>{job.customer}</strong></p></div>
+                        <div class="jobname"><p>{job.jobname}</p></div>
+                        <div class="quantity"><p><strong>{job.quantity}</strong> Stück</p></div>
+                        <div class="details"><p>{job.details}</p></div>
+                        <div class="amount"><p><strong>{job.amount}</strong> Euro</p></div>
+                        <div class="producer"><p>{job.producer}</p></div>
+                        <div class="ready">
+                            {#if (job.producer === 'chr' || job.producer === 'doe')}
+                                <label>Papier?<input type="checkbox" name="Papier?" bind:checked={job.paper_ready} onclick={() => toggleSomethingIsReady("paper", job.id, job.paper_ready)}/></label>
+                            {:else}
+                                <input type="hidden" name="Papier?"/>
+                            {/if}
+                        </div>
+                        <div class="ready">
+                            {#if (job.producer === 'chr')}
+                                <label>Platten?<input type="checkbox" name="Platten?" bind:checked={job.plates_ready} onclick={() => toggleSomethingIsReady("plates", job.id, job.plates_ready)}/></label>
+                            {:else}
+                                <input type="hidden" name="Platten?"/>
+                            {/if}
+                        </div>
+
+                        <div class="ready">
+                            {#if (job.producer === 'chr' || job.producer === 'doe')}
+                                <label>Druck?<input type="checkbox" name="Druck?" bind:checked={job.print_ready} onclick={() => toggleSomethingIsReady("print", job.id, job.print_ready)}/></label>
+                            {:else}
+                                <input type="hidden" name="Druck?"/>
+                            {/if}
+                        </div>
+                        <div class="ready">
+                            <label>Rechnung?<input type="checkbox" name="Platten?" bind:checked={job.invoice_ready} onclick={() => toggleSomethingIsReady("invoice", job.id, job.invoice_ready)}/></label>
+                        </div>
+                        <div class="ready">
+                            <label>Zahlung?<input type="checkbox" name="Zahlung?" bind:checked={job.payed_ready} onclick={() => toggleSomethingIsReady("payed", job.id, job.payed_ready)}/></label>
+                        </div>
+                        <button style="background-color: DeepSkyBlue; height: 2rem;"onclick={() => archiveJob(job.id)}>Archiv</button>
+                        <button style="background-color: crimson; height: 2rem;" onclick={() => deleteJob(job.id)}>Löschen</button>
+                    </div>
+                </li>
+            {/each}
+        </ul>
+    {:else if loggedIn && showArchiv}
+        <h2>{archivJobs.length} archivierte Aufträge:</h2>
+        <ul>
+            {#each archivJobs as job, index}
+                <li>
+                    <div class="joblist {index % 2 === 0 ? 'secondRow' : ''}">
+                        <div class="jobstart">
+                            <p>{new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                        </div>
+                        <div class="customer"><p><strong>{job.customer}</strong></p></div>
+                        <div class="jobname"><p>{job.jobname}</p></div>
+                        <div class="quantity"><p><strong>{job.quantity}</strong> Stück</p></div>
+                        <div class="details"><p>{job.details}</p></div>
+                        <div class="amount"><p><strong>{job.amount}</strong> Euro</p></div>
+                        <div class="producer"><p>{job.producer}</p></div>
+                    </div>
+                </li>
+            {/each}
+        </ul>
+    {/if}
 </main>
-
-<!--
-<ul>
-    {#each customers as customer}
-        <li>{customer.companyName}</li>
-    {/each}
-</ul>
-<hr>
-<select bind:value={selectedCustomer}>
-    <option value="" disabled selected>Select a customer</option>
-    {#each customers as customer}
-        <option value={customer.companyName}>{customer.companyName}</option>
-    {/each}
-</select>
-<hr>
-{#if selectedCustomer}
-    <h2>Selected Customer: {selectedCustomer}</h2>
-{/if}
--->
 
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
@@ -361,9 +384,6 @@
    
 
     .jobstart {
-        flex: 1;
-    }
-    .jobID {
         flex: 1;
     }
     .customer {
