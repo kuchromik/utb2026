@@ -182,20 +182,28 @@
             }
         }
     }
+    
+    let archiveCustomer = $state('');
 
-    function getJobFromArchiv(customer) {
+    function getJobFromArchiv(archiveCustomer) {
+        let archiveCustomerToLower = archiveCustomer.toLowerCase();
         archivJobs = [];
-        const q = query(collection(db, "Jobs"), where("archiv", "==", true), where("customer", "==", customer));
+        const q = query(collection(db, "Jobs"), where("archiv", "==", true));
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             archivJobs = [];
             querySnapshot.forEach((doc) => {
-                let ID = doc.id;
-                let archivJob = { id: ID, ...doc.data() };
-                archivJobs = [...archivJobs, archivJob];
+                let customerToLower = doc.data().customer.toLowerCase();
+                if (archiveCustomerToLower.includes(customerToLower)) {
+                    let ID = doc.id;
+                    let archivJob = { id: ID, ...doc.data() };
+                    archivJobs = [...archivJobs, archivJob];
+                }
+                
             });
             archivJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
         });
         showArchiv = true;
+        archiveCustomer = '';
     }
 </script>
 
@@ -254,11 +262,12 @@
             <button onclick={addNewJob}>Auftrag anlegen</button>
         </div>
         <h2>Archiv:</h2>
-        <select onchange={getJobFromArchiv} bind:value={newCustomer}>
-            <option value="" disabled selected>Wählen Sie einen Kunden</option>
-            {#each customers as customer}
-                <option value={customer.companyName}>{customer.companyName}</option>
-            {/each}
+    <select bind:value={archiveCustomer} onchange={() => getJobFromArchiv(archiveCustomer)}>
+        <option value="" disabled selected>Wählen Sie einen Kunden</option>
+        {#each customers as customer}
+            <option value={customer.companyName}>{customer.companyName}</option>
+        {/each}
+    </select>
         <h2>{jobs.length} aktive Aufträge:</h2>
         <ul>
             {#each jobs as job, index}
@@ -308,7 +317,10 @@
             {/each}
         </ul>
     {:else if loggedIn && showArchiv}
-        <h2>{archivJobs.length} archivierte Aufträge:</h2>
+        <div>
+            <h2>{archivJobs.length} archivierte Aufträge:</h2>
+            <button onclick={() => {showArchiv = false; archiveCustomer = '';}}>Archiv schließen</button>
+        </div>
         <ul>
             {#each archivJobs as job, index}
                 <li>
