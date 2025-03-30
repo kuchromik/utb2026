@@ -204,7 +204,27 @@
         });
         showArchiv = true;
         archiveCustomer = '';
-    }
+        }
+        function addNewJobFromArchiv(job) {
+            const colRef = doc(collection(db, "Jobs"));
+            setDoc(colRef, {
+                jobstart: Date.now() / 1000,
+                customer: job.customer,
+                jobname: job.jobname,
+                quantity: job.quantity,
+                details: job.details,
+                amount: job.amount,
+                producer: job.producer,
+                paper_ready: false,
+                plates_ready: false,
+                print_ready: false,
+                invoice_ready: false,
+                payed_ready: false,
+                archiv: false
+            });
+            console.log("Document written with ID: ", colRef.id);
+            showArchiv = false;
+        }
 </script>
 
 <main>
@@ -334,7 +354,7 @@
                         <div class="details"><p>{job.details}</p></div>
                         <div class="amount"><p><strong>{job.amount}</strong> Euro</p></div>
                         <div class="producer"><p>{job.producer}</p></div>
-                    </div>
+                        <button style="background-color: DeepSkyBlue; height: 2rem;" onclick={() => addNewJobFromArchiv(job)}>Kopieren</button>
                 </li>
             {/each}
         </ul>
