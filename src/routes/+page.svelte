@@ -205,9 +205,9 @@
         showArchiv = true;
         archiveCustomer = '';
         }
-        function addNewJobFromArchiv(job) {
-            const colRef = doc(collection(db, "Jobs"));
-            setDoc(colRef, {
+    function addNewJobFromArchiv(job) {
+        const colRef = doc(collection(db, "Jobs"));
+        setDoc(colRef, {
                 jobstart: Date.now() / 1000,
                 customer: job.customer,
                 jobname: job.jobname,
@@ -222,9 +222,35 @@
                 payed_ready: false,
                 archiv: false
             });
-            console.log("Document written with ID: ", colRef.id);
-            showArchiv = false;
+        console.log("Document written with ID: ", colRef.id);
+        showArchiv = false;
         }
+    function editJob(job) {
+        let editedCustomer = prompt("Kunde:", job.customer);
+        let editedJobname = prompt("Auftrag:", job.jobname);
+        let editedQuantity = parseInt(prompt("Menge:", job.quantity), 10);
+        let editedDetails = prompt("Details:", job.details);
+        let editedAmount = parseFloat(prompt("Betrag:", job.amount));
+        let editedProducer = prompt("Produzent:", job.producer);
+
+        if (editedCustomer && editedJobname && !isNaN(editedQuantity) && editedDetails && !isNaN(editedAmount) && editedProducer) {
+            const jobRef = doc(db, "Jobs", job.id);
+            updateDoc(jobRef, {
+                customer: editedCustomer,
+                jobname: editedJobname,
+                quantity: editedQuantity,
+                details: editedDetails,
+                amount: editedAmount,
+                producer: editedProducer
+            }).then(() => {
+                console.log("Job updated successfully");
+            }).catch((error) => {
+                console.error("Error updating job: ", error);
+            });
+        } else {
+            alert("Alle Felder müssen korrekt ausgefüllt werden!");
+        }
+    }
 </script>
 
 <main>
@@ -330,8 +356,10 @@
                         <div class="ready">
                             <label>Zahlung?<input type="checkbox" name="Zahlung?" bind:checked={job.payed_ready} onclick={() => toggleSomethingIsReady("payed", job.id, job.payed_ready)}/></label>
                         </div>
+                        <button style="background-color: orange; height: 2rem;" onclick={() => editJob(job)}>Bearbeiten</button>
                         <button style="background-color: DeepSkyBlue; height: 2rem;"onclick={() => archiveJob(job.id)}>Archiv</button>
                         <button style="background-color: crimson; height: 2rem;" onclick={() => deleteJob(job.id)}>Löschen</button>
+                        
                     </div>
                 </li>
             {/each}
@@ -419,7 +447,7 @@
         flex: 1;
     }
     .customer {
-        flex: 2;
+        flex: 1;
     }
     .jobname {
         flex: 2;
