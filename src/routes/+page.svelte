@@ -166,11 +166,11 @@
         newProducer = '';
     }
     function handleNewCustomer() {
-        if (newCustomer === "Neuer Kunde") {
+        if (newCustomer === "Neuer Kunde" || changedCustomer === "Neuer Kunde") {
             let newCustomerName = prompt("Bitte geben Sie den Namen des neuen Kunden ein:");
             let newCustomerName2 = prompt("Bitte geben Sie den zweiten Namen des neuen Kunden ein:");
-            let newCustomerAddress1 = prompt("Bitte geben Sie die erste Adresse des neuen Kunden ein:");
-            let newCustomerAddress2 = prompt("Bitte geben Sie die zweite Adresse des neuen Kunden ein:");
+            let newCustomerAddress1 = prompt("Bitte geben Sie Straße und Hausnummer des neuen Kunden ein:");
+            let newCustomerAddress2 = prompt("Bitte geben Sie PLZ und Ort des neuen Kunden ein:");
             if (newCustomerName != null && newCustomerAddress1 != null && newCustomerAddress2 != null) {
                 const colRef = doc(collection(db, "customer"));
                 setDoc(colRef, {
@@ -225,31 +225,49 @@
         console.log("Document written with ID: ", colRef.id);
         showArchiv = false;
         }
-    function editJob(job) {
-        let editedCustomer = prompt("Kunde:", job.customer);
-        let editedJobname = prompt("Auftrag:", job.jobname);
-        let editedQuantity = parseInt(prompt("Menge:", job.quantity), 10);
-        let editedDetails = prompt("Details:", job.details);
-        let editedAmount = parseFloat(prompt("Betrag:", job.amount));
-        let editedProducer = prompt("Produzent:", job.producer);
 
-        if (editedCustomer && editedJobname && !isNaN(editedQuantity) && editedDetails && !isNaN(editedAmount) && editedProducer) {
-            const jobRef = doc(db, "Jobs", job.id);
-            updateDoc(jobRef, {
-                customer: editedCustomer,
-                jobname: editedJobname,
-                quantity: editedQuantity,
-                details: editedDetails,
-                amount: editedAmount,
-                producer: editedProducer
-            }).then(() => {
-                console.log("Job updated successfully");
-            }).catch((error) => {
-                console.error("Error updating job: ", error);
-            });
-        } else {
-            alert("Alle Felder müssen korrekt ausgefüllt werden!");
-        }
+    let jobToEdit = $state('');
+    let jobToEditIndex = $state(0);
+    let editMode = $state(false);
+
+    function openEditMode(job, index) {
+        jobToEdit = job;
+        jobToEditIndex = index;
+        editMode = true;
+        changedCustomer = job.customer;
+        changedJobname = job.jobname;
+        changedQuantity = job.quantity;
+        changedDetails = job.details;
+        changedAmount = job.amount;
+        changedProducer = job.producer;
+        console.log("Edit mode opened for job: ", jobToEdit);
+    }
+
+    let changedCustomer = $state('');
+    let changedJobname = $state('');
+    let changedQuantity = $state(0);
+    let changedDetails = $state('');
+    let changedAmount = $state(0.00);
+    let changedProducer = $state('');
+
+    function saveChangedJob() {
+        const jobRef = doc(db, "Jobs", jobToEdit.id);
+        updateDoc(jobRef, {
+            customer: changedCustomer,
+            jobname: changedJobname,
+            quantity: changedQuantity,
+            details: changedDetails,
+            amount: changedAmount,
+            producer: changedProducer
+        });
+        console.log("Document updated with ID: ", jobToEdit.id);
+        stopChangeMode();
+    }
+
+    function stopChangeMode() {
+        editMode = false;
+        jobToEdit = '';
+        jobToEditIndex = 0;
     }
 </script>
 
@@ -304,8 +322,8 @@
                 <option value="hee">Heenemann</option>
                 <option value="son">Sonstige</option>
             </select>
-            <button onclick={clearNewJob}>Felder löschen</button>
-            <button onclick={addNewJob}>Auftrag anlegen</button>
+            <button style="background-color: mediumseagreen; height: 2rem;" onclick={addNewJob}>Auftrag anlegen</button>
+            <button style="background-color: crimson; height: 2rem;" onclick={clearNewJob}>Felder löschen</button>
         </div>
         <h2>Archiv:</h2>
     <select bind:value={archiveCustomer} onchange={() => getJobFromArchiv(archiveCustomer)}>
@@ -356,11 +374,44 @@
                         <div class="ready">
                             <label>Zahlung?<input type="checkbox" name="Zahlung?" bind:checked={job.payed_ready} onclick={() => toggleSomethingIsReady("payed", job.id, job.payed_ready)}/></label>
                         </div>
-                        <button style="background-color: orange; height: 2rem;" onclick={() => editJob(job)}>Bearbeiten</button>
+                        <button style="background-color: orange; height: 2rem;" onclick={() => openEditMode(job, index)}>Bearbeiten</button>
                         <button style="background-color: DeepSkyBlue; height: 2rem;"onclick={() => archiveJob(job.id)}>Archiv</button>
                         <button style="background-color: crimson; height: 2rem;" onclick={() => deleteJob(job.id)}>Löschen</button>
                         
                     </div>
+                    {#if editMode && jobToEditIndex === index}
+                        <div class="changeJob">
+                
+                            <select onchange={handleNewCustomer} bind:value={changedCustomer}>
+                                <option value="" disabled selected>Wählen Sie einen Kunden</option>
+                                <option value="Neuer Kunde">Neuer Kunde</option>
+                                {#each customers as customer}
+                                    <option value={customer.companyName}>{customer.companyName}</option>
+                                {/each}
+                            </select>
+                            
+                            <input class="broadField" type="text" placeholder="Auftrag" bind:value={changedJobname}/>
+                            <input class="smallField"type="number" placeholder="Menge" bind:value={changedQuantity}/>
+                            <input class="broadField" type="text" placeholder="Details" bind:value={changedDetails}/>
+                            <input class="smallField" type="number" placeholder="Betrag" bind:value={changedAmount}/>
+                            <select bind:value={changedProducer}>
+                                <option value="" disabled selected>Produzent</option>
+                                <option value="chr">Chromik Offsetdruck</option>
+                                <option value="doe">Chromik Digitaldruck</option>
+                                <option value="pwd">Printworld</option>
+                                <option value="sax">Saxoprint</option>
+                                <option value="wmd">wir-machen-druck</option>
+                                <option value="sil">Silberdruck</option>
+                                <option value="pin">Pinguin</option>
+                                <option value="hee">Heenemann</option>
+                                <option value="son">Sonstige</option>
+                            </select>
+                            <button style="background-color: mediumseagreen; height: 2rem;" onclick={saveChangedJob}>Speichern</button>
+                            <button style="background-color: crimson; height: 2rem;" onclick={stopChangeMode}>Abbruch</button>
+                            
+                        </div>
+                    {/if}
+
                 </li>
             {/each}
         </ul>
@@ -473,6 +524,18 @@
         align-items: center;
         gap: 10px;
         background-color: lightgreen;
+        border: 1px solid grey;
+        border-radius: 5px;
+        padding: 10px;
+        margin-top: 10px;
+    }
+
+
+    .changeJob {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background-color: sandybrown;
         border: 1px solid grey;
         border-radius: 5px;
         padding: 10px;
