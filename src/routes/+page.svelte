@@ -1,64 +1,107 @@
 <script>
+    import { onDestroy } from 'svelte';
     import { app, auth } from '$lib/FireBase.js';
     import { getFirestore, collection, onSnapshot, query, where, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
     import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+    
+    // Import components
+    import LoginForm from '$lib/components/LoginForm.svelte';
+    import Modal from '$lib/components/Modal.svelte';
+    import NewCustomerModal from '$lib/components/NewCustomerModal.svelte';
+    import JobForm from '$lib/components/JobForm.svelte';
+    import JobEditForm from '$lib/components/JobEditForm.svelte';
+    import JobListItem from '$lib/components/JobListItem.svelte';
+    import JobListHeader from '$lib/components/JobListHeader.svelte';
+    import ArchiveListHeader from '$lib/components/ArchiveListHeader.svelte';
 
-    let email = $state('');
-    let password = $state('');
     let loggedIn = $state(false);
     let showArchiv = $state(false);
     let customers = $state([]);
     let jobs = $state([]);
     let archivJobs = $state([]);
-    let user = $state();
+    let user = $state('');
     
     const db = getFirestore(app);
+    
+    // Store unsubscribe functions for cleanup
+    let unsubscribeCustomers = null;
+    let unsubscribeJobs = null;
+    let unsubscribeArchivJobs = null;
+    
+    // Modal states
+    let showDeleteModal = $state(false);
+    let showArchiveModal = $state(false);
+    let showNewCustomerModal = $state(false);
+    let deleteJobId = $state('');
+    let archiveJobId = $state('');
+    
+    // Edit mode
+    let jobToEdit = $state(null);
+    let jobToEditIndex = $state(0);
+    let editMode = $state(false);
+    
+    // Archive customer selection
+    let archiveCustomer = $state('');
+    
+    // Cleanup listeners on component destroy
+    onDestroy(() => {
+        if (unsubscribeCustomers) unsubscribeCustomers();
+        if (unsubscribeJobs) unsubscribeJobs();
+        if (unsubscribeArchivJobs) unsubscribeArchivJobs();
+    });
 
-    async function handleSignIn() {
-        try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            user = userCredential.user.email;
-            loggedIn = true;
-            getJobsFromCollection();
-            getCustomersFromCollection();
-        } catch (error) {
-            console.error(error.code, error.message);
-        }
+    async function handleSignIn(email, password) {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        user = userCredential.user.email;
+        loggedIn = true;
+        getJobsFromCollection();
+        getCustomersFromCollection();
     }
 
     async function handleLogOut() {
-        try {
-            await signOut(auth);
-            console.log("User signed out");
-            loggedIn = false;
-            showArchiv = false;
-            customers = [];
-            jobs = [];
-            email = '';
-            password = '';
-            user = '';
-            archivJobs = [];
-        } catch (error) {
-            console.error(error.code, error.message);
+        await signOut(auth);
+        loggedIn = false;
+        showArchiv = false;
+        customers = [];
+        jobs = [];
+        user = '';
+        archivJobs = [];
+        
+        // Clean up listeners
+        if (unsubscribeCustomers) {
+            unsubscribeCustomers();
+            unsubscribeCustomers = null;
+        }
+        if (unsubscribeJobs) {
+            unsubscribeJobs();
+            unsubscribeJobs = null;
+        }
+        if (unsubscribeArchivJobs) {
+            unsubscribeArchivJobs();
+            unsubscribeArchivJobs = null;
         }
     }
     
     async function getCustomersFromCollection() {
+        if (unsubscribeCustomers) unsubscribeCustomers();
         customers = [];
         const q = query(collection(db, "customer"));
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        unsubscribeCustomers = onSnapshot(q, (querySnapshot) => {
             customers = [];
             querySnapshot.forEach((doc) => {
                 customers = [...customers, doc.data()];
             });
             customers.sort((a, b) => (a.companyName > b.companyName) ? 1 : -1);
+        }, (error) => {
+            console.error("Error fetching customers:", error);
         });
     }
 
     async function getJobsFromCollection() {
+        if (unsubscribeJobs) unsubscribeJobs();
         jobs = [];
         const q = query(collection(db, "Jobs"), where("archiv", "==", false));
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        unsubscribeJobs = onSnapshot(q, (querySnapshot) => {
             jobs = [];
             querySnapshot.forEach((doc) => {
                 let ID = doc.id;
@@ -66,63 +109,43 @@
                 jobs = [...jobs, job];
             });
             jobs.sort((a, b) => (b.jobstart) - (a.jobstart));
+        }, (error) => {
+            console.error("Error fetching jobs:", error);
         });
-        
     }
-   
 
     async function toggleSomethingIsReady(whatsIsReady, ID, isReady) {
         const jobRef = doc(db, "Jobs", ID);
-        if (whatsIsReady === "paper") {
-            await updateDoc(jobRef, {
-                paper_ready: !(isReady)
-            });
-            console.log(whatsIsReady, "status geändert on Firestore");
-        } else if (whatsIsReady === "plates") {
-            await updateDoc(jobRef, {
-                plates_ready: !(isReady)
-            });
-            console.log(whatsIsReady, "status geändert on Firestore");
-        }
-        else if (whatsIsReady === "print") {
-            await updateDoc(jobRef, {
-                print_ready: !(isReady)
-            });
-            console.log(whatsIsReady, "status geändert on Firestore");
-        }
-        else if (whatsIsReady === "invoice") {
-            await updateDoc(jobRef, {
-                invoice_ready: !(isReady)
-            });
-            console.log(whatsIsReady, "status geändert on Firestore");
-        }
-        else if (whatsIsReady === "payed") {
-            await updateDoc(jobRef, {
-                payed_ready: !(isReady)
-            });
-            console.log(whatsIsReady, "status geändert on Firestore");
-        }
+        const updateField = {
+            paper: "paper_ready",
+            plates: "plates_ready",
+            print: "print_ready",
+            invoice: "invoice_ready",
+            payed: "payed_ready"
+        };
         
+        const fieldName = updateField[whatsIsReady];
+        if (fieldName) {
+            try {
+                await updateDoc(jobRef, {
+                    [fieldName]: !isReady
+                });
+            } catch (error) {
+                console.error(`Error updating ${whatsIsReady}:`, error);
+            }
+        }
     }
 
-    let newCustomer = $state('');
-    let newJobname = $state('');
-    let newQuantity = $state(0);
-    let newDetails = $state('');
-    let newAmount = $state(0.00);
-    let newProducer = $state('');
-
-    async function addNewJob() {
-        
+    async function addNewJob(jobData) {
         const colRef = doc(collection(db, "Jobs"));
-        await setDoc(colRef,{
+        await setDoc(colRef, {
             jobstart: Date.now() / 1000,
-            customer: newCustomer,
-            jobname: newJobname,
-            quantity: newQuantity,
-            details: newDetails,
-            amount: newAmount,
-            producer: newProducer,
+            customer: jobData.customer,
+            jobname: jobData.jobname,
+            quantity: jobData.quantity,
+            details: jobData.details,
+            amount: jobData.amount,
+            producer: jobData.producer,
             paper_ready: false,
             plates_ready: false,
             print_ready: false,
@@ -130,66 +153,59 @@
             payed_ready: false,
             archiv: false
         });
-        console.log("Document written with ID: ", colRef.id);
-        newCustomer = '';
-        newJobname = '';
-        newQuantity = 0;
-        newDetails = '';
-        newAmount = 0;
-        newProducer = '';
     }
 
-    function archiveJob(ID) {
-        if (!confirm("Diesen Auftrag wirklich archivieren?")) {
-            return;
-        }
-        const jobRef = doc(db, "Jobs", ID);
-        updateDoc(jobRef, {
-            archiv: true
-        });
+    function confirmArchiveJob(jobId) {
+        archiveJobId = jobId;
+        showArchiveModal = true;
     }
 
-    function deleteJob(ID) {
-        if (!confirm("Diesen Auftrag wirklich löschen?")) {
-            return;
-        }
-        const jobRef = doc(db, "Jobs", ID);
-        deleteDoc(jobRef);
-    }
-
-    function clearNewJob() {
-        newCustomer = '';
-        newJobname = '';
-        newQuantity = 0;
-        newDetails = '';
-        newAmount = 0;
-        newProducer = '';
-    }
-    function handleNewCustomer() {
-        if (newCustomer === "Neuer Kunde" || changedCustomer === "Neuer Kunde") {
-            let newCustomerName = prompt("Bitte geben Sie den Namen des neuen Kunden ein:");
-            let newCustomerName2 = prompt("Bitte geben Sie den zweiten Namen des neuen Kunden ein:");
-            let newCustomerAddress1 = prompt("Bitte geben Sie Straße und Hausnummer des neuen Kunden ein:");
-            let newCustomerAddress2 = prompt("Bitte geben Sie PLZ und Ort des neuen Kunden ein:");
-            if (newCustomerName != null && newCustomerAddress1 != null && newCustomerAddress2 != null) {
-                const colRef = doc(collection(db, "customer"));
-                setDoc(colRef, {
-                    companyName: newCustomerName,
-                    companyName2: newCustomerName2,
-                    address1: newCustomerAddress1,
-                    address2: newCustomerAddress2
-                });
-            }
+    async function archiveJob() {
+        try {
+            const jobRef = doc(db, "Jobs", archiveJobId);
+            await updateDoc(jobRef, {
+                archiv: true
+            });
+        } catch (error) {
+            console.error("Error archiving job:", error);
         }
     }
-    
-    let archiveCustomer = $state('');
 
-    function getJobFromArchiv(archiveCustomer) {
-        let archiveCustomerToLower = archiveCustomer.toLowerCase();
+    function confirmDeleteJob(jobId) {
+        deleteJobId = jobId;
+        showDeleteModal = true;
+    }
+
+    async function deleteJob() {
+        try {
+            const jobRef = doc(db, "Jobs", deleteJobId);
+            await deleteDoc(jobRef);
+        } catch (error) {
+            console.error("Error deleting job:", error);
+        }
+    }
+
+    async function addNewCustomer(customerData) {
+        try {
+            const colRef = doc(collection(db, "customer"));
+            await setDoc(colRef, {
+                companyName: customerData.companyName,
+                companyName2: customerData.companyName2,
+                address1: customerData.address1,
+                address2: customerData.address2
+            });
+        } catch (error) {
+            console.error("Error adding customer:", error);
+            throw error;
+        }
+    }
+
+    function getJobFromArchiv(selectedCustomer) {
+        if (unsubscribeArchivJobs) unsubscribeArchivJobs();
+        let archiveCustomerToLower = selectedCustomer.toLowerCase();
         archivJobs = [];
         const q = query(collection(db, "Jobs"), where("archiv", "==", true));
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        unsubscribeArchivJobs = onSnapshot(q, (querySnapshot) => {
             archivJobs = [];
             querySnapshot.forEach((doc) => {
                 let customerToLower = doc.data().customer.toLowerCase();
@@ -198,16 +214,19 @@
                     let archivJob = { id: ID, ...doc.data() };
                     archivJobs = [...archivJobs, archivJob];
                 }
-                
             });
             archivJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
+        }, (error) => {
+            console.error("Error fetching archive jobs:", error);
         });
         showArchiv = true;
         archiveCustomer = '';
-        }
-    function addNewJobFromArchiv(job) {
-        const colRef = doc(collection(db, "Jobs"));
-        setDoc(colRef, {
+    }
+
+    async function addNewJobFromArchiv(job) {
+        try {
+            const colRef = doc(collection(db, "Jobs"));
+            await setDoc(colRef, {
                 jobstart: Date.now() / 1000,
                 customer: job.customer,
                 jobname: job.jobname,
@@ -222,51 +241,39 @@
                 payed_ready: false,
                 archiv: false
             });
-        console.log("Document written with ID: ", colRef.id);
-        showArchiv = false;
+            showArchiv = false;
+        } catch (error) {
+            console.error("Error copying job from archive:", error);
         }
-
-    let jobToEdit = $state('');
-    let jobToEditIndex = $state(0);
-    let editMode = $state(false);
+    }
 
     function openEditMode(job, index) {
         jobToEdit = job;
         jobToEditIndex = index;
         editMode = true;
-        changedCustomer = job.customer;
-        changedJobname = job.jobname;
-        changedQuantity = job.quantity;
-        changedDetails = job.details;
-        changedAmount = job.amount;
-        changedProducer = job.producer;
-        console.log("Edit mode opened for job: ", jobToEdit);
     }
 
-    let changedCustomer = $state('');
-    let changedJobname = $state('');
-    let changedQuantity = $state(0);
-    let changedDetails = $state('');
-    let changedAmount = $state(0.00);
-    let changedProducer = $state('');
-
-    function saveChangedJob() {
-        const jobRef = doc(db, "Jobs", jobToEdit.id);
-        updateDoc(jobRef, {
-            customer: changedCustomer,
-            jobname: changedJobname,
-            quantity: changedQuantity,
-            details: changedDetails,
-            amount: changedAmount,
-            producer: changedProducer
-        });
-        console.log("Document updated with ID: ", jobToEdit.id);
-        stopChangeMode();
+    async function saveChangedJob(changedData) {
+        try {
+            const jobRef = doc(db, "Jobs", jobToEdit.id);
+            await updateDoc(jobRef, {
+                customer: changedData.customer,
+                jobname: changedData.jobname,
+                quantity: changedData.quantity,
+                details: changedData.details,
+                amount: changedData.amount,
+                producer: changedData.producer
+            });
+            stopChangeMode();
+        } catch (error) {
+            console.error("Error updating job:", error);
+            throw error;
+        }
     }
 
     function stopChangeMode() {
         editMode = false;
-        jobToEdit = '';
+        jobToEdit = null;
         jobToEditIndex = 0;
     }
 </script>
@@ -274,279 +281,234 @@
 <main>
     <h1 class="headline">Welcome to UTB2026</h1>
 
-    <div class = "login">
-        {#if !loggedIn}
-            <input type="email" bind:value={email} placeholder="Email" />
-            <input type="password" bind:value={password} placeholder="Password" />
+    <LoginForm 
+        bind:loggedIn={loggedIn}
+        bind:user={user}
+        onSignIn={handleSignIn}
+        onSignOut={handleLogOut}
+    />
     
-            <button onclick={handleSignIn}>Sign In</button>
-        {:else}
-            <button onclick={()=> handleLogOut()}>Sign Out</button>
-        {/if}
-        <div>
-            {#if loggedIn}
-                <h2 style="color: darkgreen;">Logged as {user}</h2>
-            {:else}
-                <h2 style="color: lightcoral;">No User logged</h2>
-            {/if}
-        </div>
-    </div>
     <hr>
 
     {#if loggedIn && !showArchiv}
-    
-        <h2>Neuer Auftrag:</h2>
-        <div class="newJob">
-            
-            <select onchange={handleNewCustomer} bind:value={newCustomer}>
+        <JobForm 
+            {customers}
+            onSubmit={addNewJob}
+            onNewCustomer={() => showNewCustomerModal = true}
+        />
+        
+        <h2>Archiv:</h2>
+        <div class="archive-selector">
+            <select bind:value={archiveCustomer} onchange={() => getJobFromArchiv(archiveCustomer)}>
                 <option value="" disabled selected>Wählen Sie einen Kunden</option>
-                <option value="Neuer Kunde">Neuer Kunde</option>
                 {#each customers as customer}
                     <option value={customer.companyName}>{customer.companyName}</option>
                 {/each}
             </select>
-            
-            <input class="broadField" type="text" placeholder="Auftrag" bind:value={newJobname}/>
-            <input class="smallField"type="number" placeholder="Menge" bind:value={newQuantity}/>
-            <input class="broadField" type="text" placeholder="Details" bind:value={newDetails}/>
-            <input class="smallField" type="number" placeholder="Betrag" bind:value={newAmount}/>
-            <select bind:value={newProducer}>
-                <option value="" disabled selected>Produzent</option>
-                <option value="chr">Chromik Offsetdruck</option>
-                <option value="doe">Chromik Digitaldruck</option>
-                <option value="pwd">Printworld</option>
-                <option value="sax">Saxoprint</option>
-                <option value="wmd">wir-machen-druck</option>
-                <option value="sil">Silberdruck</option>
-                <option value="pin">Pinguin</option>
-                <option value="hee">Heenemann</option>
-                <option value="son">Sonstige</option>
-            </select>
-            <button style="background-color: mediumseagreen; height: 2rem;" onclick={addNewJob}>Auftrag anlegen</button>
-            <button style="background-color: crimson; height: 2rem;" onclick={clearNewJob}>Felder löschen</button>
         </div>
-        <h2>Archiv:</h2>
-    <select bind:value={archiveCustomer} onchange={() => getJobFromArchiv(archiveCustomer)}>
-        <option value="" disabled selected>Wählen Sie einen Kunden</option>
-        {#each customers as customer}
-            <option value={customer.companyName}>{customer.companyName}</option>
-        {/each}
-    </select>
+        
         <h2>{jobs.length} aktive Aufträge:</h2>
+        <JobListHeader />
         <ul>
             {#each jobs as job, index}
                 <li>
-                    <div class="joblist {index % 2 === 0 ? 'secondRow' : ''}">
-                        <div class="jobstart">
-                            <p>{new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}</p>
-                        </div>
-                        <div class="customer"><p><strong>{job.customer}</strong></p></div>
-                        <div class="jobname"><p>{job.jobname}</p></div>
-                        <div class="quantity"><p><strong>{job.quantity}</strong> Stück</p></div>
-                        <div class="details"><p>{job.details}</p></div>
-                        <div class="amount"><p><strong>{job.amount}</strong> Euro</p></div>
-                        <div class="producer"><p>{job.producer}</p></div>
-                        <div class="ready">
-                            {#if (job.producer === 'chr' || job.producer === 'doe')}
-                                <label>Papier?<input type="checkbox" name="Papier?" bind:checked={job.paper_ready} onclick={() => toggleSomethingIsReady("paper", job.id, job.paper_ready)}/></label>
-                            {:else}
-                                <input type="hidden" name="Papier?"/>
-                            {/if}
-                        </div>
-                        <div class="ready">
-                            {#if (job.producer === 'chr')}
-                                <label>Platten?<input type="checkbox" name="Platten?" bind:checked={job.plates_ready} onclick={() => toggleSomethingIsReady("plates", job.id, job.plates_ready)}/></label>
-                            {:else}
-                                <input type="hidden" name="Platten?"/>
-                            {/if}
-                        </div>
-
-                        <div class="ready">
-                            {#if (job.producer === 'chr' || job.producer === 'doe')}
-                                <label>Druck?<input type="checkbox" name="Druck?" bind:checked={job.print_ready} onclick={() => toggleSomethingIsReady("print", job.id, job.print_ready)}/></label>
-                            {:else}
-                                <input type="hidden" name="Druck?"/>
-                            {/if}
-                        </div>
-                        <div class="ready">
-                            <label>Rechnung?<input type="checkbox" name="Platten?" bind:checked={job.invoice_ready} onclick={() => toggleSomethingIsReady("invoice", job.id, job.invoice_ready)}/></label>
-                        </div>
-                        <div class="ready">
-                            <label>Zahlung?<input type="checkbox" name="Zahlung?" bind:checked={job.payed_ready} onclick={() => toggleSomethingIsReady("payed", job.id, job.payed_ready)}/></label>
-                        </div>
-                        <button style="background-color: orange; height: 2rem;" onclick={() => openEditMode(job, index)}>Bearbeiten</button>
-                        <button style="background-color: DeepSkyBlue; height: 2rem;"onclick={() => archiveJob(job.id)}>Archiv</button>
-                        <button style="background-color: crimson; height: 2rem;" onclick={() => deleteJob(job.id)}>Löschen</button>
-                        
-                    </div>
+                    <JobListItem 
+                        {job}
+                        {index}
+                        onToggleReady={toggleSomethingIsReady}
+                        onEdit={openEditMode}
+                        onArchive={confirmArchiveJob}
+                        onDelete={confirmDeleteJob}
+                    />
+                    
                     {#if editMode && jobToEditIndex === index}
-                        <div class="changeJob">
-                
-                            <select onchange={handleNewCustomer} bind:value={changedCustomer}>
-                                <option value="" disabled selected>Wählen Sie einen Kunden</option>
-                                <option value="Neuer Kunde">Neuer Kunde</option>
-                                {#each customers as customer}
-                                    <option value={customer.companyName}>{customer.companyName}</option>
-                                {/each}
-                            </select>
-                            
-                            <input class="broadField" type="text" placeholder="Auftrag" bind:value={changedJobname}/>
-                            <input class="smallField"type="number" placeholder="Menge" bind:value={changedQuantity}/>
-                            <input class="broadField" type="text" placeholder="Details" bind:value={changedDetails}/>
-                            <input class="smallField" type="number" placeholder="Betrag" bind:value={changedAmount}/>
-                            <select bind:value={changedProducer}>
-                                <option value="" disabled selected>Produzent</option>
-                                <option value="chr">Chromik Offsetdruck</option>
-                                <option value="doe">Chromik Digitaldruck</option>
-                                <option value="pwd">Printworld</option>
-                                <option value="sax">Saxoprint</option>
-                                <option value="wmd">wir-machen-druck</option>
-                                <option value="sil">Silberdruck</option>
-                                <option value="pin">Pinguin</option>
-                                <option value="hee">Heenemann</option>
-                                <option value="son">Sonstige</option>
-                            </select>
-                            <button style="background-color: mediumseagreen; height: 2rem;" onclick={saveChangedJob}>Speichern</button>
-                            <button style="background-color: crimson; height: 2rem;" onclick={stopChangeMode}>Abbruch</button>
-                            
-                        </div>
+                        <JobEditForm 
+                            job={jobToEdit}
+                            {customers}
+                            onSave={saveChangedJob}
+                            onCancel={stopChangeMode}
+                            onNewCustomer={() => showNewCustomerModal = true}
+                        />
                     {/if}
-
                 </li>
             {/each}
         </ul>
     {:else if loggedIn && showArchiv}
-        <div>
-            <h2>{archivJobs.length} archivierte Aufträge:</h2>
-            <button onclick={() => {showArchiv = false; archiveCustomer = '';}}>Archiv schließen</button>
+        <div class="archive-header">
+            <h2>📦 {archivJobs.length} archivierte Aufträge</h2>
+            <button onclick={() => {showArchiv = false; archiveCustomer = '';}}>
+                ← Zurück zu aktiven Aufträgen
+            </button>
         </div>
+        <ArchiveListHeader />
         <ul>
             {#each archivJobs as job, index}
                 <li>
-                    <div class="joblist {index % 2 === 0 ? 'secondRow' : ''}">
-                        <div class="jobstart">
-                            <p>{new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}</p>
-                        </div>
-                        <div class="customer"><p><strong>{job.customer}</strong></p></div>
-                        <div class="jobname"><p>{job.jobname}</p></div>
-                        <div class="quantity"><p><strong>{job.quantity}</strong> Stück</p></div>
-                        <div class="details"><p>{job.details}</p></div>
-                        <div class="amount"><p><strong>{job.amount}</strong> Euro</p></div>
-                        <div class="producer"><p>{job.producer}</p></div>
-                        <button style="background-color: DeepSkyBlue; height: 2rem;" onclick={() => addNewJobFromArchiv(job)}>Kopieren</button>
+                    <JobListItem 
+                        {job}
+                        {index}
+                        showReadyChecks={false}
+                        onEdit={addNewJobFromArchiv}
+                    />
                 </li>
             {/each}
         </ul>
     {/if}
 </main>
 
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+<!-- Modals -->
+<Modal 
+    bind:show={showDeleteModal}
+    title="Auftrag löschen"
+    message="Möchten Sie diesen Auftrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+    confirmText="Löschen"
+    cancelText="Abbrechen"
+    onConfirm={deleteJob}
+/>
 
-    * {
-        font-family: 'Roboto', sans-serif;
-        font-size: 12px;
+<Modal 
+    bind:show={showArchiveModal}
+    title="Auftrag archivieren"
+    message="Möchten Sie diesen Auftrag wirklich archivieren?"
+    confirmText="Archivieren"
+    cancelText="Abbrechen"
+    onConfirm={archiveJob}
+/>
+
+<NewCustomerModal 
+    bind:show={showNewCustomerModal}
+    onComplete={addNewCustomer}
+/>
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import '$lib/styles/theme.css';
+
+    :global(body) {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: var(--spacing-xl) var(--spacing-lg);
     }
 
     main {
-        max-width: 1600px;
+        max-width: 1800px;
         margin: 0 auto;
+        background: var(--color-white);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-xl);
+        padding: var(--spacing-2xl);
     }
 
     .headline {
-        font-size: 24px;
+        font-size: var(--font-size-3xl);
         font-weight: 700;
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-xl);
         text-align: center;
+        color: var(--color-gray-900);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
 
+    :global(hr) {
+        border: none;
+        height: 1px;
+        background: var(--color-gray-200);
+        margin: var(--spacing-xl) 0;
+    }
+
+    :global(h2) {
+        font-size: var(--font-size-xl);
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: var(--spacing-lg) 0 var(--spacing-md) 0;
+    }
+
+    :global(select) {
+        padding: var(--spacing-sm) var(--spacing-md);
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-base);
+        color: var(--color-gray-700);
+        background-color: var(--color-white);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        min-width: 200px;
+    }
+
+    :global(select:hover) {
+        border-color: var(--color-primary);
+    }
+
+    :global(select:focus) {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px var(--color-primary-light);
+    }
+
+    :global(button) {
+        padding: var(--spacing-sm) var(--spacing-lg);
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-base);
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        box-shadow: var(--shadow-sm);
+    }
+
+    :global(button:hover) {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
+
+    :global(button:active) {
+        transform: translateY(0);
+    }
+
+    :global(button:disabled) {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
 
     ul {
         padding-inline-start: 0;
+        list-style: none;
     }
 
     li {
         list-style-type: none;
+        margin-bottom: var(--spacing-md);
     }
 
-    .login {
+    .archive-header {
         display: flex;
-        justify-content: center;
-        gap: 10px;
-        margin-bottom: 20px;
-    }
-
-
-    .joblist {
-        display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 10px;
-        background-color: whitesmoke;
-        border: 1px solid grey;
-        border-radius: 5px;
-        padding: 10px;
-        margin-top: 10px;
+        background: var(--color-info-light);
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-lg);
+        margin-bottom: var(--spacing-lg);
+        border: 2px solid var(--color-info);
     }
 
-    .secondRow {
-        background-color: lightgrey;
+    .archive-header h2 {
+        margin: 0;
+        color: var(--color-info);
     }
 
-   
-
-    .jobstart {
-        flex: 1;
-    }
-    .customer {
-        flex: 1;
-    }
-    .jobname {
-        flex: 2;
-    }
-    .quantity {
-        flex: 1;
-    }
-    .details {
-        flex: 3;
-    }
-    .amount {
-        flex: 1;
-    }
-    .producer {
-        flex: 1;
-    }
-    .ready {
-        flex: 1;
+    .archive-header button {
+        background: var(--color-info);
+        color: white;
     }
 
-    .newJob {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background-color: lightgreen;
-        border: 1px solid grey;
-        border-radius: 5px;
-        padding: 10px;
-        margin-top: 10px;
+    .archive-header button:hover {
+        background: var(--color-info-hover);
     }
 
-
-    .changeJob {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background-color: sandybrown;
-        border: 1px solid grey;
-        border-radius: 5px;
-        padding: 10px;
-        margin-top: 10px;
-    }
-    .smallField {
-        width: 50px;
-    }
-    .broadField {
-        width: 30%;
+    .archive-selector {
+        margin-bottom: var(--spacing-lg);
     }
 </style>
-
-

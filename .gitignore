@@ -23,4 +23,4 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # Svelte
-src/lib/Firebase.js
+# Note: Firebase.js is now using environment variables from .env
