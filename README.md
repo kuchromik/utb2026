@@ -36,3 +36,35 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Typ-Dokumentation
+
+Die zentralen Anwendungs-Typen liegen in [src/lib/types.d.ts](src/lib/types.d.ts).
+
+### Datenmodelle
+
+- `Customer`: Kunde mit Firmenname und optionalen Adressfeldern
+- `JobFormData`: Eingabedaten für Erstellen/Bearbeiten eines Auftrags
+- `Job`: Vollständiger Auftrag inklusive Firestore-IDs/Statusfeldern
+- `ReadyType`: erlaubte Status-Toggles (`paper`, `plates`, `print`, `invoice`, `payed`)
+
+### Handler-Typen
+
+- `JobSubmitHandler`, `JobSaveHandler`: Erstellen/Speichern von Aufträgen
+- `JobEditHandler`: Bearbeiten/Kopieren eines Auftrags
+- `JobToggleReadyHandler`: Umschalten von Check-Statusfeldern
+- `JobIdHandler`: Aktionen mit Job-ID (z. B. Archivieren/Löschen)
+- `SignInHandler`, `SignOutHandler`: Login/Logout-Callbacks
+- `CustomerCompleteHandler`: Abschluss-Callback für neues Kundenformular
+- `ModalConfirmHandler`, `VoidHandler`: generische Modal- und UI-Callbacks
+
+### Verwendung in Komponenten
+
+In Svelte-Komponenten werden die Typen per JSDoc importiert, z. B.:
+
+```js
+/** @typedef {import('$lib/types').Job} Job */
+/** @typedef {import('$lib/types').JobSaveHandler} JobSaveHandler */
+```
+
+Dadurch bleiben `checkJs` und `svelte-check` streng, ohne alle Komponenten auf TypeScript-Dateien umstellen zu müssen.

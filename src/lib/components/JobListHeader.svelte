@@ -4,17 +4,17 @@
 <div class="job-list-header">
     <div class="header-item">Datum</div>
     <div class="header-item">Kunde</div>
-    <div class="header-item">Auftrag</div>
+    <div class="header-item">Auftr.</div>
     <div class="header-item">Menge</div>
-    <div class="header-item">Details</div>
+    <div class="header-item">Det.</div>
     <div class="header-item">Betrag</div>
     <div class="header-item">Prod.</div>
-    <div class="header-item">Papier</div>
-    <div class="header-item">Platten</div>
+    <div class="header-item">Pap.</div>
+    <div class="header-item">Plat.</div>
     <div class="header-item">Druck</div>
-    <div class="header-item">Rechnung</div>
-    <div class="header-item">Zahlung</div>
-    <div class="header-item" style="grid-column: span 3; text-align: center;">Aktionen</div>
+    <div class="header-item">Rechg.</div>
+    <div class="header-item">Zahlg.</div>
+    <div class="header-item" style="grid-column: span 3; text-align: center;">Aktion</div>
 </div>
 
 <style>
@@ -29,7 +29,7 @@
             100px          /* Betrag */
             80px           /* Produzent */
             80px 80px 80px 80px 80px  /* Checkboxen */
-            auto auto auto;  /* Buttons */
+            88px 88px 88px;  /* Buttons */
         gap: var(--spacing-sm);
         align-items: center;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

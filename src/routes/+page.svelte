@@ -14,18 +14,30 @@
     import JobListHeader from '$lib/components/JobListHeader.svelte';
     import ArchiveListHeader from '$lib/components/ArchiveListHeader.svelte';
 
+    /** @typedef {import('$lib/types').Customer} Customer */
+    /** @typedef {import('$lib/types').JobFormData} JobFormData */
+    /** @typedef {import('$lib/types').Job} Job */
+    /** @typedef {import('$lib/types').ReadyType} ReadyType */
+    /** @typedef {import('$lib/types').UnsubscribeFn} UnsubscribeFn */
+
     let loggedIn = $state(false);
     let showArchiv = $state(false);
+    /** @type {Customer[]} */
     let customers = $state([]);
+    /** @type {Job[]} */
     let jobs = $state([]);
+    /** @type {Job[]} */
     let archivJobs = $state([]);
     let user = $state('');
     
     const db = getFirestore(app);
     
     // Store unsubscribe functions for cleanup
+    /** @type {UnsubscribeFn | null} */
     let unsubscribeCustomers = null;
+    /** @type {UnsubscribeFn | null} */
     let unsubscribeJobs = null;
+    /** @type {UnsubscribeFn | null} */
     let unsubscribeArchivJobs = null;
     
     // Modal states
@@ -36,12 +48,36 @@
     let archiveJobId = $state('');
     
     // Edit mode
+    /** @type {Job | null} */
     let jobToEdit = $state(null);
     let jobToEditIndex = $state(0);
     let editMode = $state(false);
     
     // Archive customer selection
     let archiveCustomer = $state('');
+    let archiveSearch = $state('');
+
+    /** @param {number | string} value */
+    function normalizeAmount(value) {
+        const numericValue = Number(value);
+        return Math.round((numericValue + Number.EPSILON) * 100) / 100;
+    }
+
+    function noop() {}
+
+    /** @returns {Job[]} */
+    function getFilteredArchivJobs() {
+        const queryText = archiveSearch.trim().toLowerCase();
+        if (!queryText) {
+            return archivJobs;
+        }
+
+        return archivJobs.filter((job) => {
+            const jobname = job.jobname?.toLowerCase() ?? '';
+            const details = job.details?.toLowerCase() ?? '';
+            return jobname.includes(queryText) || details.includes(queryText);
+        });
+    }
     
     // Cleanup listeners on component destroy
     onDestroy(() => {
@@ -50,9 +86,10 @@
         if (unsubscribeArchivJobs) unsubscribeArchivJobs();
     });
 
+    /** @param {string} email @param {string} password */
     async function handleSignIn(email, password) {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        user = userCredential.user.email;
+        user = userCredential.user.email ?? '';
         loggedIn = true;
         getJobsFromCollection();
         getCustomersFromCollection();
@@ -89,7 +126,8 @@
         unsubscribeCustomers = onSnapshot(q, (querySnapshot) => {
             customers = [];
             querySnapshot.forEach((doc) => {
-                customers = [...customers, doc.data()];
+                const customerData = /** @type {Customer} */ (doc.data());
+                customers = [...customers, customerData];
             });
             customers.sort((a, b) => (a.companyName > b.companyName) ? 1 : -1);
         }, (error) => {
@@ -105,8 +143,8 @@
             jobs = [];
             querySnapshot.forEach((doc) => {
                 let ID = doc.id;
-                let job = { id: ID, ...doc.data() };
-                jobs = [...jobs, job];
+                const jobData = /** @type {Job} */ ({ id: ID, ...doc.data() });
+                jobs = [...jobs, jobData];
             });
             jobs.sort((a, b) => (b.jobstart) - (a.jobstart));
         }, (error) => {
@@ -114,8 +152,10 @@
         });
     }
 
+    /** @param {ReadyType} whatsIsReady @param {string} ID @param {boolean} isReady */
     async function toggleSomethingIsReady(whatsIsReady, ID, isReady) {
         const jobRef = doc(db, "Jobs", ID);
+        /** @type {Record<ReadyType, string>} */
         const updateField = {
             paper: "paper_ready",
             plates: "plates_ready",
@@ -136,6 +176,7 @@
         }
     }
 
+    /** @param {JobFormData} jobData */
     async function addNewJob(jobData) {
         const colRef = doc(collection(db, "Jobs"));
         await setDoc(colRef, {
@@ -144,7 +185,7 @@
             jobname: jobData.jobname,
             quantity: jobData.quantity,
             details: jobData.details,
-            amount: jobData.amount,
+            amount: normalizeAmount(jobData.amount),
             producer: jobData.producer,
             paper_ready: false,
             plates_ready: false,
@@ -155,6 +196,7 @@
         });
     }
 
+    /** @param {string} jobId */
     function confirmArchiveJob(jobId) {
         archiveJobId = jobId;
         showArchiveModal = true;
@@ -171,6 +213,7 @@
         }
     }
 
+    /** @param {string} jobId */
     function confirmDeleteJob(jobId) {
         deleteJobId = jobId;
         showDeleteModal = true;
@@ -185,6 +228,7 @@
         }
     }
 
+    /** @param {Customer} customerData */
     async function addNewCustomer(customerData) {
         try {
             const colRef = doc(collection(db, "customer"));
@@ -200,6 +244,7 @@
         }
     }
 
+    /** @param {string} selectedCustomer */
     function getJobFromArchiv(selectedCustomer) {
         if (unsubscribeArchivJobs) unsubscribeArchivJobs();
         let archiveCustomerToLower = selectedCustomer.toLowerCase();
@@ -211,8 +256,8 @@
                 let customerToLower = doc.data().customer.toLowerCase();
                 if (archiveCustomerToLower.includes(customerToLower)) {
                     let ID = doc.id;
-                    let archivJob = { id: ID, ...doc.data() };
-                    archivJobs = [...archivJobs, archivJob];
+                    const archivJobData = /** @type {Job} */ ({ id: ID, ...doc.data() });
+                    archivJobs = [...archivJobs, archivJobData];
                 }
             });
             archivJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
@@ -221,8 +266,10 @@
         });
         showArchiv = true;
         archiveCustomer = '';
+        archiveSearch = '';
     }
 
+    /** @param {Job} job */
     async function addNewJobFromArchiv(job) {
         try {
             const colRef = doc(collection(db, "Jobs"));
@@ -232,7 +279,7 @@
                 jobname: job.jobname,
                 quantity: job.quantity,
                 details: job.details,
-                amount: job.amount,
+                amount: normalizeAmount(job.amount),
                 producer: job.producer,
                 paper_ready: false,
                 plates_ready: false,
@@ -247,13 +294,19 @@
         }
     }
 
+    /** @param {Job} job @param {number} index */
     function openEditMode(job, index) {
         jobToEdit = job;
         jobToEditIndex = index;
         editMode = true;
     }
 
+    /** @param {JobFormData} changedData */
     async function saveChangedJob(changedData) {
+        if (!jobToEdit) {
+            return;
+        }
+
         try {
             const jobRef = doc(db, "Jobs", jobToEdit.id);
             await updateDoc(jobRef, {
@@ -261,7 +314,7 @@
                 jobname: changedData.jobname,
                 quantity: changedData.quantity,
                 details: changedData.details,
-                amount: changedData.amount,
+                amount: normalizeAmount(changedData.amount),
                 producer: changedData.producer
             });
             stopChangeMode();
@@ -294,7 +347,9 @@
         <JobForm 
             {customers}
             onSubmit={addNewJob}
-            onNewCustomer={() => showNewCustomerModal = true}
+            onNewCustomer={() => {
+                showNewCustomerModal = true;
+            }}
         />
         
         <h2>Archiv:</h2>
@@ -306,7 +361,7 @@
                 {/each}
             </select>
         </div>
-        
+
         <h2>{jobs.length} aktive Aufträge:</h2>
         <JobListHeader />
         <ul>
@@ -321,13 +376,15 @@
                         onDelete={confirmDeleteJob}
                     />
                     
-                    {#if editMode && jobToEditIndex === index}
+                    {#if editMode && jobToEdit && jobToEditIndex === index}
                         <JobEditForm 
                             job={jobToEdit}
                             {customers}
                             onSave={saveChangedJob}
                             onCancel={stopChangeMode}
-                            onNewCustomer={() => showNewCustomerModal = true}
+                            onNewCustomer={() => {
+                                showNewCustomerModal = true;
+                            }}
                         />
                     {/if}
                 </li>
@@ -335,20 +392,30 @@
         </ul>
     {:else if loggedIn && showArchiv}
         <div class="archive-header">
-            <h2>📦 {archivJobs.length} archivierte Aufträge</h2>
-            <button onclick={() => {showArchiv = false; archiveCustomer = '';}}>
+            <h2>📦 {getFilteredArchivJobs().length} archivierte Aufträge</h2>
+            <button onclick={() => {showArchiv = false; archiveCustomer = ''; archiveSearch = '';}}>
                 ← Zurück zu aktiven Aufträgen
             </button>
         </div>
+        <div class="archive-search">
+            <input
+                type="text"
+                bind:value={archiveSearch}
+                placeholder="Suche in Jobname oder Details"
+            />
+        </div>
         <ArchiveListHeader />
         <ul>
-            {#each archivJobs as job, index}
+            {#each getFilteredArchivJobs() as job, index}
                 <li>
                     <JobListItem 
                         {job}
                         {index}
                         showReadyChecks={false}
                         onEdit={addNewJobFromArchiv}
+                        onToggleReady={noop}
+                        onArchive={noop}
+                        onDelete={noop}
                     />
                 </li>
             {/each}
@@ -510,5 +577,24 @@
 
     .archive-selector {
         margin-bottom: var(--spacing-lg);
+    }
+
+    .archive-search {
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .archive-search input {
+        width: 100%;
+        max-width: 420px;
+        padding: var(--spacing-sm) var(--spacing-md);
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-base);
+    }
+
+    .archive-search input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px var(--color-primary-light);
     }
 </style>

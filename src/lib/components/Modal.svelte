@@ -1,4 +1,10 @@
 <script>
+    import { tick } from 'svelte';
+
+    /** @typedef {import('$lib/types').ModalConfirmHandler} ModalConfirmHandler */
+    /** @typedef {import('$lib/types').VoidHandler} VoidHandler */
+
+    /** @type {{ show?: boolean, title?: string, message?: string, confirmText?: string, cancelText?: string, onConfirm?: ModalConfirmHandler | null, onCancel?: VoidHandler | null, showInput?: boolean, inputPlaceholder?: string, inputValue?: string }} */
     let { 
         show = $bindable(false),
         title = 'Bestätigung',
@@ -11,6 +17,15 @@
         inputPlaceholder = '',
         inputValue = $bindable('')
     } = $props();
+
+    /** @type {HTMLInputElement | undefined} */
+    let inputRef = $state(undefined);
+
+    $effect(() => {
+        if (show && showInput) {
+            tick().then(() => inputRef?.focus());
+        }
+    });
 
     function handleConfirm() {
         if (onConfirm) {
@@ -28,6 +43,14 @@
         inputValue = '';
     }
 
+    /** @param {MouseEvent} event */
+    function handleBackdropClick(event) {
+        if (event.target === event.currentTarget) {
+            handleCancel();
+        }
+    }
+
+    /** @param {KeyboardEvent} e */
     function handleKeydown(e) {
         if (e.key === 'Escape') {
             handleCancel();
@@ -38,8 +61,15 @@
 </script>
 
 {#if show}
-    <div class="modal-backdrop" onclick={handleCancel} onkeydown={handleKeydown}>
-        <div class="modal" onclick={(e) => e.stopPropagation()}>
+    <div
+        class="modal-backdrop"
+        role="button"
+        tabindex="0"
+        aria-label="Dialog schließen"
+        onclick={handleBackdropClick}
+        onkeydown={handleKeydown}
+    >
+        <div class="modal" role="dialog" aria-modal="true" aria-label={title}>
             <h3>{title}</h3>
             <p>{message}</p>
             
@@ -47,8 +77,8 @@
                 <input 
                     type="text" 
                     bind:value={inputValue} 
+                    bind:this={inputRef}
                     placeholder={inputPlaceholder}
-                    autofocus
                     onkeydown={(e) => e.key === 'Enter' && handleConfirm()}
                 />
             {/if}

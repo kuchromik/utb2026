@@ -1,4 +1,8 @@
 <script>
+    /** @typedef {import('$lib/types').SignInHandler} SignInHandler */
+    /** @typedef {import('$lib/types').SignOutHandler} SignOutHandler */
+
+    /** @type {{ loggedIn?: boolean, user?: string, onSignIn: SignInHandler, onSignOut: SignOutHandler }} */
     let { loggedIn = $bindable(false), user = $bindable(''), onSignIn, onSignOut } = $props();
     
     let email = $state('');
@@ -6,6 +10,7 @@
     let error = $state('');
     let loading = $state(false);
 
+    /** @param {string} email */
     function validateEmail(email) {
         const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return re.test(email);
@@ -39,7 +44,7 @@
         try {
             await onSignIn(email, password);
         } catch (err) {
-            error = err.message || 'Anmeldung fehlgeschlagen';
+            error = err instanceof Error ? err.message : 'Anmeldung fehlgeschlagen';
         } finally {
             loading = false;
         }
@@ -53,7 +58,7 @@
             email = '';
             password = '';
         } catch (err) {
-            error = err.message || 'Abmeldung fehlgeschlagen';
+            error = err instanceof Error ? err.message : 'Abmeldung fehlgeschlagen';
         } finally {
             loading = false;
         }

@@ -1,4 +1,10 @@
 <script>
+    /** @typedef {import('$lib/types').Job} Job */
+    /** @typedef {import('$lib/types').JobToggleReadyHandler} JobToggleReadyHandler */
+    /** @typedef {import('$lib/types').JobEditHandler} JobEditHandler */
+    /** @typedef {import('$lib/types').JobIdHandler} JobIdHandler */
+
+    /** @type {{ job: Job, index: number, onToggleReady: JobToggleReadyHandler, onEdit: JobEditHandler, onArchive: JobIdHandler, onDelete: JobIdHandler, showReadyChecks?: boolean }} */
     let { 
         job,
         index,
@@ -8,6 +14,19 @@
         onDelete,
         showReadyChecks = true
     } = $props();
+
+    /** @param {number | string} value */
+    function formatAmount(value) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return '0,00';
+        }
+
+        return numericValue.toLocaleString('de-DE', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
 </script>
 
 {#if showReadyChecks}
@@ -27,7 +46,7 @@
     <div class="details">
         <p title={job.details}>{job.details}</p>
     </div>
-    <div class="amount"><p><strong>{job.amount}</strong> Euro</p></div>
+    <div class="amount"><p><strong>{formatAmount(job.amount)}</strong> Euro</p></div>
     <div class="producer">
         <p title={job.producer}>{job.producer}</p>
     </div>
@@ -41,7 +60,7 @@
                         type="checkbox" 
                         name="Papier?" 
                         bind:checked={job.paper_ready} 
-                        onclick={() => onToggleReady("paper", job.id, job.paper_ready)}
+                        onclick={() => onToggleReady("paper", job.id, Boolean(job.paper_ready))}
                     />
                 </label>
             {:else}
@@ -57,7 +76,7 @@
                         type="checkbox" 
                         name="Platten?" 
                         bind:checked={job.plates_ready} 
-                        onclick={() => onToggleReady("plates", job.id, job.plates_ready)}
+                        onclick={() => onToggleReady("plates", job.id, Boolean(job.plates_ready))}
                     />
                 </label>
             {:else}
@@ -73,7 +92,7 @@
                         type="checkbox" 
                         name="Druck?" 
                         bind:checked={job.print_ready} 
-                        onclick={() => onToggleReady("print", job.id, job.print_ready)}
+                        onclick={() => onToggleReady("print", job.id, Boolean(job.print_ready))}
                     />
                 </label>
             {:else}
@@ -88,7 +107,7 @@
                     type="checkbox" 
                     name="Rechnung?" 
                     bind:checked={job.invoice_ready} 
-                    onclick={() => onToggleReady("invoice", job.id, job.invoice_ready)}
+                    onclick={() => onToggleReady("invoice", job.id, Boolean(job.invoice_ready))}
                 />
             </label>
         </div>
@@ -100,7 +119,7 @@
                     type="checkbox" 
                     name="Zahlung?" 
                     bind:checked={job.payed_ready} 
-                    onclick={() => onToggleReady("payed", job.id, job.payed_ready)}
+                    onclick={() => onToggleReady("payed", job.id, Boolean(job.payed_ready))}
                 />
             </label>
         </div>
@@ -133,7 +152,7 @@
     <div class="details">
         <p title={job.details}>{job.details}</p>
     </div>
-    <div class="amount"><p><strong>{job.amount}</strong> Euro</p></div>
+    <div class="amount"><p><strong>{formatAmount(job.amount)}</strong> Euro</p></div>
     <div class="producer">
         <p title={job.producer}>{job.producer}</p>
     </div>
@@ -155,7 +174,7 @@
             100px          /* Betrag */
             80px           /* Produzent */
             80px 80px 80px 80px 80px  /* Checkboxen */
-            auto auto auto;  /* Buttons */
+            88px 88px 88px;  /* Buttons */
         gap: var(--spacing-sm);
         align-items: center;
         background: var(--color-white);
@@ -240,6 +259,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         display: -webkit-box;
+        line-clamp: 2;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         line-height: 1.4;
@@ -297,11 +317,6 @@
         cursor: pointer;
         accent-color: var(--color-success);
         flex-shrink: 0;
-    }
-
-    /* Button Container für bessere Ausrichtung */
-    .button-group {
-        display: contents; /* Buttons bleiben im Grid-Flow */
     }
 
     button {

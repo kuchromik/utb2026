@@ -1,4 +1,9 @@
 <script>
+    /** @typedef {import('$lib/types').Customer} Customer */
+    /** @typedef {import('$lib/types').JobSubmitHandler} JobSubmitHandler */
+    /** @typedef {import('$lib/types').VoidHandler} VoidHandler */
+
+    /** @type {{ customers?: Customer[], onSubmit: JobSubmitHandler, onNewCustomer: VoidHandler }} */
     let { 
         customers = [],
         onSubmit,
@@ -13,6 +18,12 @@
     let producer = $state('');
     let error = $state('');
     let loading = $state(false);
+
+    /** @param {number | string} value */
+    function normalizeAmount(value) {
+        const numericValue = Number(value);
+        return Math.round((numericValue + Number.EPSILON) * 100) / 100;
+    }
 
     function validateForm() {
         error = '';
@@ -32,7 +43,8 @@
             return false;
         }
         
-        if (amount < 0) {
+        const numericAmount = Number(amount);
+        if (!Number.isFinite(numericAmount) || numericAmount < 0) {
             error = 'Betrag kann nicht negativ sein';
             return false;
         }
@@ -59,14 +71,14 @@
                 jobname: jobname.trim(),
                 quantity: Number(quantity),
                 details: details.trim(),
-                amount: Number(amount),
+                amount: normalizeAmount(amount),
                 producer
             });
             
             // Reset form
             clearForm();
         } catch (err) {
-            error = `Fehler beim Anlegen: ${err.message}`;
+            error = `Fehler beim Anlegen: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`;
         } finally {
             loading = false;
         }

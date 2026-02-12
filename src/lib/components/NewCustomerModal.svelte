@@ -1,4 +1,9 @@
 <script>
+    import { tick } from 'svelte';
+
+    /** @typedef {import('$lib/types').CustomerCompleteHandler} CustomerCompleteHandler */
+
+    /** @type {{ show?: boolean, onComplete?: CustomerCompleteHandler | null }} */
     let { 
         show = $bindable(false),
         onComplete = null
@@ -10,6 +15,14 @@
     let address1 = $state('');
     let address2 = $state('');
     let error = $state('');
+    /** @type {HTMLInputElement | undefined} */
+    let activeInput = $state(undefined);
+
+    $effect(() => {
+        if (show) {
+            tick().then(() => activeInput?.focus());
+        }
+    });
 
     function validateStep() {
         error = '';
@@ -65,6 +78,21 @@
         reset();
     }
 
+    /** @param {MouseEvent} event */
+    function handleBackdropClick(event) {
+        if (event.target === event.currentTarget) {
+            handleCancel();
+        }
+    }
+
+    /** @param {KeyboardEvent} event */
+    function handleBackdropKeydown(event) {
+        if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleCancel();
+        }
+    }
+
     function reset() {
         show = false;
         step = 1;
@@ -77,44 +105,55 @@
 </script>
 
 {#if show}
-    <div class="modal-backdrop" onclick={handleCancel}>
-        <div class="modal" onclick={(e) => e.stopPropagation()}>
+    <div
+        class="modal-backdrop"
+        role="button"
+        tabindex="0"
+        aria-label="Dialog schließen"
+        onclick={handleBackdropClick}
+        onkeydown={handleBackdropKeydown}
+    >
+        <div class="modal" role="dialog" aria-modal="true" aria-label={`Neuen Kunden anlegen - Schritt ${step} von 4`}>
             <h3>Neuen Kunden anlegen - Schritt {step}/4</h3>
             
             {#if step === 1}
-                <label>Firmenname (Zeile 1) *</label>
+                <label for="company-name-line-1">Firmenname (Zeile 1) *</label>
                 <input 
+                    id="company-name-line-1"
                     type="text" 
                     bind:value={companyName} 
+                    bind:this={activeInput}
                     placeholder="Firma GmbH"
-                    autofocus
                     onkeydown={(e) => e.key === 'Enter' && nextStep()}
                 />
             {:else if step === 2}
-                <label>Firmenname (Zeile 2, optional)</label>
+                <label for="company-name-line-2">Firmenname (Zeile 2, optional)</label>
                 <input 
+                    id="company-name-line-2"
                     type="text" 
                     bind:value={companyName2} 
+                    bind:this={activeInput}
                     placeholder="Abteilung / Zusatz"
-                    autofocus
                     onkeydown={(e) => e.key === 'Enter' && nextStep()}
                 />
             {:else if step === 3}
-                <label>Straße und Hausnummer *</label>
+                <label for="address-line-1">Straße und Hausnummer *</label>
                 <input 
+                    id="address-line-1"
                     type="text" 
                     bind:value={address1} 
+                    bind:this={activeInput}
                     placeholder="Musterstraße 123"
-                    autofocus
                     onkeydown={(e) => e.key === 'Enter' && nextStep()}
                 />
             {:else if step === 4}
-                <label>PLZ und Ort *</label>
+                <label for="address-line-2">PLZ und Ort *</label>
                 <input 
+                    id="address-line-2"
                     type="text" 
                     bind:value={address2} 
+                    bind:this={activeInput}
                     placeholder="12345 Musterstadt"
-                    autofocus
                     onkeydown={(e) => e.key === 'Enter' && nextStep()}
                 />
             {/if}

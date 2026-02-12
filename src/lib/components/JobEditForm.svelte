@@ -1,4 +1,10 @@
 <script>
+    /** @typedef {import('$lib/types').Job} Job */
+    /** @typedef {import('$lib/types').Customer} Customer */
+    /** @typedef {import('$lib/types').JobSaveHandler} JobSaveHandler */
+    /** @typedef {import('$lib/types').VoidHandler} VoidHandler */
+
+    /** @type {{ job: Job, customers?: Customer[], onSave: JobSaveHandler, onCancel: VoidHandler, onNewCustomer: VoidHandler }} */
     let { 
         job,
         customers = [],
@@ -15,6 +21,12 @@
     let producer = $state(job.producer);
     let error = $state('');
     let loading = $state(false);
+
+    /** @param {number | string} value */
+    function normalizeAmount(value) {
+        const numericValue = Number(value);
+        return Math.round((numericValue + Number.EPSILON) * 100) / 100;
+    }
 
     function validateForm() {
         error = '';
@@ -34,7 +46,8 @@
             return false;
         }
         
-        if (amount < 0) {
+        const numericAmount = Number(amount);
+        if (!Number.isFinite(numericAmount) || numericAmount < 0) {
             error = 'Betrag kann nicht negativ sein';
             return false;
         }
@@ -61,11 +74,11 @@
                 jobname: jobname.trim(),
                 quantity: Number(quantity),
                 details: details.trim(),
-                amount: Number(amount),
+                amount: normalizeAmount(amount),
                 producer
             });
         } catch (err) {
-            error = `Fehler beim Speichern: ${err.message}`;
+            error = `Fehler beim Speichern: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`;
         } finally {
             loading = false;
         }
