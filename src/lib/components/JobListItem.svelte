@@ -59,8 +59,11 @@
                     <input 
                         type="checkbox" 
                         name="Papier?" 
-                        bind:checked={job.paper_ready} 
-                        onclick={() => onToggleReady("paper", job.id, Boolean(job.paper_ready))}
+                        checked={Boolean(job.paper_ready)}
+                        onchange={(event) => {
+                            const target = /** @type {HTMLInputElement} */ (event.currentTarget);
+                            onToggleReady("paper", job.id, !target.checked);
+                        }}
                     />
                 </label>
             {:else}
@@ -75,8 +78,11 @@
                     <input 
                         type="checkbox" 
                         name="Platten?" 
-                        bind:checked={job.plates_ready} 
-                        onclick={() => onToggleReady("plates", job.id, Boolean(job.plates_ready))}
+                        checked={Boolean(job.plates_ready)}
+                        onchange={(event) => {
+                            const target = /** @type {HTMLInputElement} */ (event.currentTarget);
+                            onToggleReady("plates", job.id, !target.checked);
+                        }}
                     />
                 </label>
             {:else}
@@ -91,8 +97,11 @@
                     <input 
                         type="checkbox" 
                         name="Druck?" 
-                        bind:checked={job.print_ready} 
-                        onclick={() => onToggleReady("print", job.id, Boolean(job.print_ready))}
+                        checked={Boolean(job.print_ready)}
+                        onchange={(event) => {
+                            const target = /** @type {HTMLInputElement} */ (event.currentTarget);
+                            onToggleReady("print", job.id, !target.checked);
+                        }}
                     />
                 </label>
             {:else}
@@ -106,8 +115,11 @@
                 <input 
                     type="checkbox" 
                     name="Rechnung?" 
-                    bind:checked={job.invoice_ready} 
-                    onclick={() => onToggleReady("invoice", job.id, Boolean(job.invoice_ready))}
+                    checked={Boolean(job.invoice_ready)}
+                    onchange={(event) => {
+                        const target = /** @type {HTMLInputElement} */ (event.currentTarget);
+                        onToggleReady("invoice", job.id, !target.checked);
+                    }}
                 />
             </label>
         </div>
@@ -118,8 +130,11 @@
                 <input 
                     type="checkbox" 
                     name="Zahlung?" 
-                    bind:checked={job.payed_ready} 
-                    onclick={() => onToggleReady("payed", job.id, Boolean(job.payed_ready))}
+                    checked={Boolean(job.payed_ready)}
+                    onchange={(event) => {
+                        const target = /** @type {HTMLInputElement} */ (event.currentTarget);
+                        onToggleReady("payed", job.id, !target.checked);
+                    }}
                 />
             </label>
         </div>

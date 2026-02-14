@@ -2,19 +2,23 @@
     /** @typedef {import('$lib/types').Customer} Customer */
     /** @typedef {import('$lib/types').JobSubmitHandler} JobSubmitHandler */
     /** @typedef {import('$lib/types').VoidHandler} VoidHandler */
+    /** @typedef {import('$lib/types').CustomerLabelHandler} CustomerLabelHandler */
 
-    /** @type {{ customers?: Customer[], onSubmit: JobSubmitHandler, onNewCustomer: VoidHandler }} */
+    /** @type {{ customers?: Customer[], onSubmit: JobSubmitHandler, onNewCustomer: VoidHandler, onEditCustomer: CustomerLabelHandler }} */
     let { 
         customers = [],
         onSubmit,
-        onNewCustomer
+        onNewCustomer,
+        onEditCustomer
     } = $props();
 
     let selectedCustomer = $state('');
     let jobname = $state('');
-    let quantity = $state(0);
+    /** @type {number | string} */
+    let quantity = $state('');
     let details = $state('');
-    let amount = $state(0);
+    /** @type {number | string} */
+    let amount = $state('');
     let producer = $state('');
     let error = $state('');
     let loading = $state(false);
@@ -38,8 +42,9 @@
             return false;
         }
         
-        if (quantity <= 0) {
-            error = 'Menge muss größer als 0 sein';
+        const numericQuantity = Number(quantity);
+        if (!Number.isFinite(numericQuantity) || numericQuantity <= 0) {
+            error = 'Auflage muss größer als 0 sein';
             return false;
         }
         
@@ -87,9 +92,9 @@
     function clearForm() {
         selectedCustomer = '';
         jobname = '';
-        quantity = 0;
+        quantity = '';
         details = '';
-        amount = 0;
+        amount = '';
         producer = '';
         error = '';
     }
@@ -100,6 +105,32 @@
             selectedCustomer = '';
         }
     }
+
+    function handleEditCustomer() {
+        if (!selectedCustomer || selectedCustomer === 'Neuer Kunde') {
+            error = 'Bitte zuerst einen bestehenden Kunden auswählen';
+            return;
+        }
+        onEditCustomer(selectedCustomer);
+    }
+
+    /** @param {Customer} customer */
+    function getCustomerLabel(customer) {
+        const company = customer.company?.trim();
+        const firstName = customer.firstName?.trim() ?? '';
+        const lastName = customer.lastName?.trim() ?? '';
+        const contactName = [lastName, firstName].filter(Boolean).join(', ');
+
+        if (company) {
+            return contactName ? `${company} – ${contactName}` : company;
+        }
+
+        const fullName = `${firstName} ${lastName}`.trim();
+        if (fullName) {
+            return fullName;
+        }
+        return customer.companyName ?? '';
+    }
 </script>
 
 <div class="job-form-container">
@@ -108,67 +139,92 @@
         <p class="error">{error}</p>
     {/if}
     <div class="newJob">
-        <select 
-            bind:value={selectedCustomer} 
-            onchange={handleCustomerChange}
-            disabled={loading}
-        >
-            <option value="" disabled selected>Wählen Sie einen Kunden</option>
-            <option value="Neuer Kunde">➕ Neuer Kunde</option>
-            {#each customers as customer}
-                <option value={customer.companyName}>{customer.companyName}</option>
-            {/each}
-        </select>
-        
-        <input 
-            class="broadField" 
-            type="text" 
-            placeholder="Auftrag" 
-            bind:value={jobname}
-            disabled={loading}
-        />
-        
-        <input 
-            class="smallField"
-            type="number" 
-            placeholder="Menge" 
-            bind:value={quantity}
-            min="1"
-            disabled={loading}
-        />
-        
-        <input 
-            class="broadField" 
-            type="text" 
-            placeholder="Details" 
-            bind:value={details}
-            disabled={loading}
-        />
-        
-        <input 
-            class="smallField" 
-            type="number" 
-            placeholder="Betrag" 
-            bind:value={amount}
-            step="0.01"
-            min="0"
-            disabled={loading}
-        />
-        
-        <select bind:value={producer} disabled={loading}>
-            <option value="" disabled selected>Produzent</option>
-            <option value="chr">Chromik Offsetdruck</option>
-            <option value="doe">Chromik Digitaldruck</option>
-            <option value="pwd">Printworld</option>
-            <option value="sax">Saxoprint</option>
-            <option value="wmd">wir-machen-druck</option>
-            <option value="sil">Silberdruck</option>
-            <option value="pin">Pinguin</option>
-            <option value="hee">Heenemann</option>
-            <option value="son">Sonstige</option>
-        </select>
+        <div class="field field-customer">
+            <label class="field-label" for="job-customer">Kunde</label>
+            <select
+                id="job-customer"
+                bind:value={selectedCustomer}
+                onchange={handleCustomerChange}
+                disabled={loading}
+            >
+                <option value="" disabled selected>Kunde ?</option>
+                <option value="Neuer Kunde">➕ Neuer Kunde</option>
+                {#each customers as customer}
+                    <option value={getCustomerLabel(customer)}>{getCustomerLabel(customer)}</option>
+                {/each}
+            </select>
+            <p class="customer-hint">Für „Kunde bearbeiten“ bitte zuerst einen bestehenden Kunden auswählen.</p>
+        </div>
+
+        <div class="field">
+            <label class="field-label" for="job-name">Auftrag</label>
+            <input
+                id="job-name"
+                class="broadField"
+                type="text"
+                placeholder="Auftrag"
+                bind:value={jobname}
+                disabled={loading}
+            />
+        </div>
+
+        <div class="field">
+            <label class="field-label" for="job-quantity">Auflage</label>
+            <input
+                id="job-quantity"
+                class="smallField"
+                type="number"
+                placeholder="Auflage (Stück)"
+                bind:value={quantity}
+                min="1"
+                disabled={loading}
+            />
+        </div>
+
+        <div class="field">
+            <label class="field-label" for="job-details">Details</label>
+            <input
+                id="job-details"
+                class="broadField"
+                type="text"
+                placeholder="Details"
+                bind:value={details}
+                disabled={loading}
+            />
+        </div>
+
+        <div class="field">
+            <label class="field-label" for="job-amount">Auftragswert</label>
+            <input
+                id="job-amount"
+                class="smallField"
+                type="number"
+                placeholder="Auftragswert (€)"
+                bind:value={amount}
+                step="0.01"
+                min="0"
+                disabled={loading}
+            />
+        </div>
+
+        <div class="field">
+            <label class="field-label" for="job-producer">Produzent</label>
+            <select id="job-producer" bind:value={producer} disabled={loading}>
+                <option value="" disabled selected>Produzent</option>
+                <option value="chr">Chromik Offsetdruck</option>
+                <option value="doe">Chromik Digitaldruck</option>
+                <option value="pwd">Printworld</option>
+                <option value="sax">Saxoprint</option>
+                <option value="wmd">wir-machen-druck</option>
+                <option value="sil">Silberdruck</option>
+                <option value="pin">Pinguin</option>
+                <option value="hee">Heenemann</option>
+                <option value="son">Sonstige</option>
+            </select>
+        </div>
         
         <button 
+            class="btn-submit"
             onclick={handleSubmit}
             disabled={loading}
         >
@@ -176,10 +232,19 @@
         </button>
         
         <button 
+            class="btn-clear"
             onclick={clearForm}
             disabled={loading}
         >
             Felder löschen
+        </button>
+
+        <button
+            class="btn-edit-customer"
+            onclick={handleEditCustomer}
+            disabled={loading}
+        >
+            Kunde bearbeiten
         </button>
     </div>
 </div>
@@ -202,9 +267,9 @@
 
     .newJob {
         display: grid;
-        grid-template-columns: 200px 1fr 100px 1fr 120px 200px auto auto;
+        grid-template-columns: 200px 1fr 100px 1fr 120px 200px auto auto auto;
         gap: var(--spacing-md);
-        align-items: center;
+        align-items: end;
         background: var(--color-success-light);
         border: 2px solid var(--color-success);
         border-radius: var(--radius-lg);
@@ -212,8 +277,26 @@
         box-shadow: var(--shadow-md);
     }
 
-    select {
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-xs);
+    }
+
+    .field-label {
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        color: var(--color-gray-700);
+    }
+
+    .field-customer {
         grid-column: span 1;
+    }
+
+    .customer-hint {
+        margin: 0;
+        font-size: var(--font-size-xs);
+        color: var(--color-gray-600);
     }
 
     input {
@@ -254,21 +337,30 @@
         height: 38px;
     }
 
-    button:first-of-type {
+    .btn-submit {
         background: var(--color-success);
         color: white;
     }
 
-    button:first-of-type:hover:not(:disabled) {
+    .btn-submit:hover:not(:disabled) {
         background: var(--color-success-hover);
     }
 
-    button:last-of-type {
+    .btn-clear {
         background: var(--color-gray-200);
         color: var(--color-gray-700);
     }
 
-    button:last-of-type:hover:not(:disabled) {
+    .btn-clear:hover:not(:disabled) {
         background: var(--color-gray-300);
+    }
+
+    .btn-edit-customer {
+        background: var(--color-info);
+        color: white;
+    }
+
+    .btn-edit-customer:hover:not(:disabled) {
+        background: var(--color-info-hover);
     }
 </style>

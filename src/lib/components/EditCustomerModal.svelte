@@ -1,11 +1,13 @@
 <script>
     import { tick } from 'svelte';
 
+    /** @typedef {import('$lib/types').Customer} Customer */
     /** @typedef {import('$lib/types').CustomerCompleteHandler} CustomerCompleteHandler */
 
-    /** @type {{ show?: boolean, onComplete?: CustomerCompleteHandler | null }} */
-    let { 
+    /** @type {{ show?: boolean, customer?: Customer | null, onComplete?: CustomerCompleteHandler | null }} */
+    let {
         show = $bindable(false),
+        customer = null,
         onComplete = null
     } = $props();
 
@@ -22,7 +24,17 @@
     let activeInput = $state(undefined);
 
     $effect(() => {
-        if (show) {
+        if (show && customer) {
+            firstName = customer.firstName ?? '';
+            lastName = customer.lastName ?? '';
+            company = customer.company ?? '';
+            address = customer.address ?? '';
+            zip = customer.zip ?? '';
+            city = customer.city ?? '';
+            countryCode = customer.countryCode ?? 'DE';
+            email = customer.email ?? '';
+            error = '';
+
             tick().then(() => activeInput?.focus());
         }
     });
@@ -78,14 +90,15 @@
         return true;
     }
 
-    async function handleComplete() {
-        if (!validateForm()) {
+    async function handleSave() {
+        if (!customer || !validateForm()) {
             return;
         }
 
         try {
             if (onComplete) {
                 await onComplete({
+                    ...customer,
                     firstName: firstName.trim(),
                     lastName: lastName.trim(),
                     company: company.trim(),
@@ -96,14 +109,15 @@
                     email: email.trim().toLowerCase()
                 });
             }
-            reset();
+            show = false;
         } catch (err) {
-            error = `Fehler beim Anlegen: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`;
+            error = `Fehler beim Speichern: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`;
         }
     }
 
     function handleCancel() {
-        reset();
+        show = false;
+        error = '';
     }
 
     /** @param {MouseEvent} event */
@@ -120,19 +134,6 @@
             handleCancel();
         }
     }
-
-    function reset() {
-        show = false;
-        firstName = '';
-        lastName = '';
-        company = '';
-        address = '';
-        zip = '';
-        city = '';
-        countryCode = 'DE';
-        email = '';
-        error = '';
-    }
 </script>
 
 {#if show}
@@ -144,100 +145,58 @@
         onclick={handleBackdropClick}
         onkeydown={handleBackdropKeydown}
     >
-        <div class="modal" role="dialog" aria-modal="true" aria-label="Neuen Kunden anlegen">
-            <h3>Neuen Kunden anlegen</h3>
+        <div class="modal" role="dialog" aria-modal="true" aria-label="Kunde bearbeiten">
+            <h3>Kunde bearbeiten</h3>
 
             <div class="form-grid">
                 <div>
-                    <label for="first-name">Vorname *</label>
-                    <input
-                        id="first-name"
-                        type="text"
-                        bind:value={firstName}
-                        bind:this={activeInput}
-                        placeholder="Max"
-                    />
+                    <label for="edit-first-name">Vorname *</label>
+                    <input id="edit-first-name" type="text" bind:value={firstName} bind:this={activeInput} />
                 </div>
 
                 <div>
-                    <label for="last-name">Nachname *</label>
-                    <input
-                        id="last-name"
-                        type="text"
-                        bind:value={lastName}
-                        placeholder="Mustermann"
-                    />
+                    <label for="edit-last-name">Nachname *</label>
+                    <input id="edit-last-name" type="text" bind:value={lastName} />
                 </div>
 
                 <div class="full-width">
-                    <label for="company">Firma (optional)</label>
-                    <input
-                        id="company"
-                        type="text"
-                        bind:value={company}
-                        placeholder="Muster GmbH"
-                    />
+                    <label for="edit-company">Firma (optional)</label>
+                    <input id="edit-company" type="text" bind:value={company} />
                 </div>
 
                 <div class="full-width">
-                    <label for="address">Straße + Hausnummer *</label>
-                    <input
-                        id="address"
-                        type="text"
-                        bind:value={address}
-                        placeholder="Musterstraße 123"
-                    />
+                    <label for="edit-address">Straße + Hausnummer *</label>
+                    <input id="edit-address" type="text" bind:value={address} />
                 </div>
 
                 <div>
-                    <label for="zip">Postleitzahl *</label>
-                    <input
-                        id="zip"
-                        type="text"
-                        bind:value={zip}
-                        placeholder="12345"
-                    />
+                    <label for="edit-zip">Postleitzahl *</label>
+                    <input id="edit-zip" type="text" bind:value={zip} />
                 </div>
 
                 <div>
-                    <label for="city">Ort *</label>
-                    <input
-                        id="city"
-                        type="text"
-                        bind:value={city}
-                        placeholder="Musterstadt"
-                    />
+                    <label for="edit-city">Ort *</label>
+                    <input id="edit-city" type="text" bind:value={city} />
                 </div>
 
                 <div>
-                    <label for="country-code">Ländercode *</label>
-                    <input
-                        id="country-code"
-                        type="text"
-                        bind:value={countryCode}
-                        placeholder="DE"
-                        maxlength="2"
-                    />
+                    <label for="edit-country-code">Ländercode *</label>
+                    <input id="edit-country-code" type="text" bind:value={countryCode} maxlength="2" />
                 </div>
 
                 <div>
-                    <label for="email">E-Mail *</label>
-                    <input
-                        id="email"
-                        type="email"
-                        bind:value={email}
-                        placeholder="kunde@firma.de"
-                    />
+                    <label for="edit-email">E-Mail *</label>
+                    <input id="edit-email" type="email" bind:value={email} />
                 </div>
             </div>
-            
+
             {#if error}
                 <p class="error">{error}</p>
             {/if}
-            
+
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick={handleCancel}>Abbrechen</button>
-                <button class="btn-confirm" onclick={handleComplete}>Kunde anlegen</button>
+                <button class="btn-confirm" onclick={handleSave}>Speichern</button>
             </div>
         </div>
     </div>
@@ -347,7 +306,7 @@
         background: var(--color-danger-light);
         padding: var(--spacing-sm) var(--spacing-md);
         border-radius: var(--radius-md);
-        margin-bottom: var(--spacing-md);
+        margin-top: var(--spacing-md);
         border-left: 4px solid var(--color-danger);
     }
 

@@ -1,13 +1,14 @@
 <script>
     import { onDestroy } from 'svelte';
     import { app, auth } from '$lib/FireBase.js';
-    import { getFirestore, collection, onSnapshot, query, where, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
+    import { getFirestore, collection, onSnapshot, query, where, doc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, deleteField } from 'firebase/firestore';
     import { signInWithEmailAndPassword, signOut } from "firebase/auth";
     
     // Import components
     import LoginForm from '$lib/components/LoginForm.svelte';
     import Modal from '$lib/components/Modal.svelte';
     import NewCustomerModal from '$lib/components/NewCustomerModal.svelte';
+    import EditCustomerModal from '$lib/components/EditCustomerModal.svelte';
     import JobForm from '$lib/components/JobForm.svelte';
     import JobEditForm from '$lib/components/JobEditForm.svelte';
     import JobListItem from '$lib/components/JobListItem.svelte';
@@ -44,8 +45,11 @@
     let showDeleteModal = $state(false);
     let showArchiveModal = $state(false);
     let showNewCustomerModal = $state(false);
+    let showEditCustomerModal = $state(false);
     let deleteJobId = $state('');
     let archiveJobId = $state('');
+    /** @type {Customer | null} */
+    let customerToEdit = $state(null);
     
     // Edit mode
     /** @type {Job | null} */
@@ -78,6 +82,111 @@
             return jobname.includes(queryText) || details.includes(queryText);
         });
     }
+
+    /** @param {Customer} customer */
+    function getCustomerLabel(customer) {
+        const company = customer.company?.trim();
+        const firstName = customer.firstName?.trim() ?? '';
+        const lastName = customer.lastName?.trim() ?? '';
+        const contactName = [lastName, firstName].filter(Boolean).join(', ');
+
+        if (company) {
+            return contactName ? `${company} – ${contactName}` : company;
+        }
+
+        const fullName = `${firstName} ${lastName}`.trim();
+        if (fullName) {
+            return fullName;
+        }
+        return customer.companyName ?? '';
+    }
+
+    /** @param {Customer} customer */
+    function getCustomerSortKey(customer) {
+        const company = customer.company?.trim() ?? '';
+        const lastName = customer.lastName?.trim() ?? '';
+        const firstName = customer.firstName?.trim() ?? '';
+
+        if (company) {
+            return `${company.toLowerCase()}|${lastName.toLowerCase()}|${firstName.toLowerCase()}`;
+        }
+
+        return `${lastName.toLowerCase()}|${firstName.toLowerCase()}`;
+    }
+
+    /** @param {string} customerLabel */
+    function openEditCustomerModal(customerLabel) {
+        const selectedCustomer = customers.find((customer) => getCustomerLabel(customer) === customerLabel);
+        if (!selectedCustomer) {
+            console.warn(`Customer not found for label: ${customerLabel}`);
+            return;
+        }
+        customerToEdit = selectedCustomer;
+        showEditCustomerModal = true;
+    }
+
+    /** @param {Partial<Customer> & Record<string, unknown>} customerData */
+    function normalizeCustomerData(customerData) {
+        const firstName = String(customerData.firstName ?? customerData.companyName ?? '').trim();
+        const lastName = String(customerData.lastName ?? '').trim();
+        const companyValue = String(customerData.company ?? customerData.companyName2 ?? '').trim();
+        const legacyAddress2 = String(customerData.address2 ?? '').trim();
+
+        let zipFromLegacy = '';
+        let cityFromLegacy = '';
+        const zipCityMatch = legacyAddress2.match(/^(\d{4,6})\s+(.+)$/);
+        if (zipCityMatch) {
+            zipFromLegacy = zipCityMatch[1];
+            cityFromLegacy = zipCityMatch[2];
+        }
+
+        /** @type {Customer} */
+        const normalized = {
+            firstName,
+            lastName,
+            address: String(customerData.address ?? customerData.address1 ?? '').trim(),
+            zip: String(customerData.zip ?? zipFromLegacy).trim(),
+            city: String(customerData.city ?? cityFromLegacy).trim(),
+            countryCode: String(customerData.countryCode ?? 'DE').trim().toUpperCase(),
+            email: String(customerData.email ?? '').trim().toLowerCase()
+        };
+
+        if (companyValue) {
+            normalized.company = companyValue;
+        }
+
+        return normalized;
+    }
+
+    async function migrateLegacyCustomers() {
+        const customerCollection = collection(db, "customer");
+        const snapshot = await getDocs(query(customerCollection));
+        const batch = writeBatch(db);
+        let updatedCount = 0;
+
+        snapshot.forEach((customerDoc) => {
+            const rawData = /** @type {Partial<Customer> & Record<string, unknown>} */ (customerDoc.data());
+            const needsMigration = !!(rawData.companyName || rawData.companyName2 || rawData.address1 || rawData.address2);
+            if (!needsMigration) {
+                return;
+            }
+
+            const normalized = normalizeCustomerData(rawData);
+            batch.update(customerDoc.ref, {
+                ...normalized,
+                companyName: deleteField(),
+                companyName2: deleteField(),
+                address1: deleteField(),
+                address2: deleteField()
+            });
+            updatedCount += 1;
+        });
+
+        if (updatedCount > 0) {
+            await batch.commit();
+            console.info(`Migrated ${updatedCount} legacy customer documents.`);
+        }
+    }
     
     // Cleanup listeners on component destroy
     onDestroy(() => {
@@ -91,6 +200,13 @@
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         user = userCredential.user.email ?? '';
         loggedIn = true;
+
+        try {
+            await migrateLegacyCustomers();
+        } catch (migrationError) {
+            console.error("Error migrating legacy customers:", migrationError);
+        }
+
         getJobsFromCollection();
         getCustomersFromCollection();
     }
@@ -126,10 +242,11 @@
         unsubscribeCustomers = onSnapshot(q, (querySnapshot) => {
             customers = [];
             querySnapshot.forEach((doc) => {
-                const customerData = /** @type {Customer} */ (doc.data());
+                const customerData = normalizeCustomerData(/** @type {Partial<Customer> & Record<string, unknown>} */ (doc.data()));
+                customerData.id = doc.id;
                 customers = [...customers, customerData];
             });
-            customers.sort((a, b) => (a.companyName > b.companyName) ? 1 : -1);
+            customers.sort((a, b) => getCustomerSortKey(a).localeCompare(getCustomerSortKey(b), 'de'));
         }, (error) => {
             console.error("Error fetching customers:", error);
         });
@@ -232,14 +349,62 @@
     async function addNewCustomer(customerData) {
         try {
             const colRef = doc(collection(db, "customer"));
+            const company = customerData.company?.trim();
             await setDoc(colRef, {
-                companyName: customerData.companyName,
-                companyName2: customerData.companyName2,
-                address1: customerData.address1,
-                address2: customerData.address2
+                firstName: customerData.firstName.trim(),
+                lastName: customerData.lastName.trim(),
+                ...(company ? { company } : {}),
+                address: customerData.address.trim(),
+                zip: customerData.zip.trim(),
+                city: customerData.city.trim(),
+                countryCode: customerData.countryCode.trim().toUpperCase(),
+                email: customerData.email.trim().toLowerCase()
             });
         } catch (error) {
             console.error("Error adding customer:", error);
+            throw error;
+        }
+    }
+
+    /** @param {Customer} customerData */
+    async function updateCustomer(customerData) {
+        if (!customerData.id || !customerToEdit) {
+            return;
+        }
+
+        const previousLabel = getCustomerLabel(customerToEdit);
+        const nextLabel = getCustomerLabel(customerData);
+        const customerRef = doc(db, "customer", customerData.id);
+        const company = customerData.company?.trim();
+
+        try {
+            await updateDoc(customerRef, {
+                firstName: customerData.firstName.trim(),
+                lastName: customerData.lastName.trim(),
+                ...(company ? { company } : { company: deleteField() }),
+                address: customerData.address.trim(),
+                zip: customerData.zip.trim(),
+                city: customerData.city.trim(),
+                countryCode: customerData.countryCode.trim().toUpperCase(),
+                email: customerData.email.trim().toLowerCase()
+            });
+
+            if (previousLabel !== nextLabel) {
+                const jobsQuery = query(collection(db, "Jobs"), where("customer", "==", previousLabel));
+                const jobsSnapshot = await getDocs(jobsQuery);
+                if (!jobsSnapshot.empty) {
+                    const batch = writeBatch(db);
+                    jobsSnapshot.forEach((jobDoc) => {
+                        batch.update(jobDoc.ref, { customer: nextLabel });
+                    });
+                    await batch.commit();
+                }
+            }
+
+            showEditCustomerModal = false;
+            customerToEdit = null;
+        } catch (error) {
+            console.error("Error updating customer:", error);
             throw error;
         }
     }
@@ -350,6 +515,7 @@
             onNewCustomer={() => {
                 showNewCustomerModal = true;
             }}
+            onEditCustomer={openEditCustomerModal}
         />
         
         <h2>Archiv:</h2>
@@ -357,7 +523,7 @@
             <select bind:value={archiveCustomer} onchange={() => getJobFromArchiv(archiveCustomer)}>
                 <option value="" disabled selected>Wählen Sie einen Kunden</option>
                 {#each customers as customer}
-                    <option value={customer.companyName}>{customer.companyName}</option>
+                    <option value={getCustomerLabel(customer)}>{getCustomerLabel(customer)}</option>
                 {/each}
             </select>
         </div>
@@ -385,6 +551,7 @@
                             onNewCustomer={() => {
                                 showNewCustomerModal = true;
                             }}
+                            onEditCustomer={openEditCustomerModal}
                         />
                     {/if}
                 </li>
@@ -445,6 +612,12 @@
 <NewCustomerModal 
     bind:show={showNewCustomerModal}
     onComplete={addNewCustomer}
+/>
+
+<EditCustomerModal
+    bind:show={showEditCustomerModal}
+    customer={customerToEdit}
+    onComplete={updateCustomer}
 />
 
 <style>

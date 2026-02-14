@@ -1,5 +1,14 @@
 export type Customer = {
-    companyName: string;
+    id?: string;
+    firstName: string;
+    lastName: string;
+    company?: string;
+    address: string;
+    zip: string;
+    city: string;
+    countryCode: string;
+    email: string;
+    companyName?: string;
     companyName2?: string;
     address1?: string;
     address2?: string;
@@ -37,5 +46,6 @@ export type JobEditHandler = (job: Job, index: number) => void | Promise<void>;
 export type JobSaveHandler = (job: JobFormData) => void | Promise<void>;
 export type JobToggleReadyHandler = (type: ReadyType, id: string, isReady: boolean) => void | Promise<void>;
 export type JobIdHandler = (id: string) => void | Promise<void>;
+export type CustomerLabelHandler = (customerLabel: string) => void | Promise<void>;
 export type CustomerCompleteHandler = (customer: Customer) => void | Promise<void>;
 export type ModalConfirmHandler = (inputValue?: string) => void | Promise<void>;
