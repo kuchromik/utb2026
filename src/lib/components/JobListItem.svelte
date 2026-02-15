@@ -30,7 +30,7 @@
 </script>
 
 {#if showReadyChecks}
-<div class="joblist {index % 2 === 0 ? 'secondRow' : ''}">
+<div class="joblist {index % 2 === 0 ? 'secondRow' : ''} {job.FixGuenstig ? 'fixguenstig' : ''}">
     <div class="jobstart">
         <p title={new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}>
             {new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}
@@ -111,6 +111,21 @@
         
         <div class="ready">
             <label>
+                Klar?
+                <input 
+                    type="checkbox" 
+                    name="Klar?" 
+                    checked={Boolean(job.shipped_ready)}
+                    onchange={(event) => {
+                        const target = /** @type {HTMLInputElement} */ (event.currentTarget);
+                        onToggleReady("shipped", job.id, !target.checked);
+                    }}
+                />
+            </label>
+        </div>
+        
+        <div class="ready">
+            <label>
                 Rechnung?
                 <input 
                     type="checkbox" 
@@ -151,7 +166,7 @@
     {/if}
 </div>
 {:else}
-<div class="joblist-archive {index % 2 === 0 ? 'secondRow' : ''}">
+<div class="joblist-archive {index % 2 === 0 ? 'secondRow' : ''} {job.FixGuenstig ? 'fixguenstig' : ''}">
     <div class="jobstart">
         <p title={new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}>
             {new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}
@@ -181,16 +196,16 @@
     .joblist {
         display: grid;
         grid-template-columns: 
-            140px          /* Datum */
-            minmax(150px, 200px)  /* Kunde */
-            minmax(200px, 1fr)    /* Jobname */
+            120px          /* Datum */
+            130px          /* Kunde */
+            150px          /* Jobname */
             90px           /* Menge */
             minmax(150px, 1fr)    /* Details */
             100px          /* Betrag */
             80px           /* Produzent */
-            80px 80px 80px 80px 80px  /* Checkboxen */
+            80px 80px 80px 80px 80px 80px  /* Checkboxen */
             88px 88px 88px;  /* Buttons */
-        gap: var(--spacing-sm);
+        gap: 8px;
         align-items: center;
         background: var(--color-white);
         border: 1px solid var(--color-gray-200);
@@ -207,6 +222,14 @@
 
     .secondRow {
         background: var(--color-gray-50);
+    }
+
+    .fixguenstig {
+        background: #FFF9C4 !important;
+    }
+
+    .fixguenstig:hover {
+        background: #FFF59D !important;
     }
 
     /* Gemeinsame Styles für alle Spalten */
@@ -386,15 +409,15 @@
     .joblist-archive {
         display: grid;
         grid-template-columns: 
-            140px          /* Datum */
-            minmax(150px, 200px)  /* Kunde */
-            minmax(200px, 1fr)    /* Jobname */
+            120px          /* Datum */
+            130px          /* Kunde */
+            150px          /* Jobname */
             90px           /* Menge */
             minmax(150px, 1fr)    /* Details */
             100px          /* Betrag */
             100px          /* Produzent */
             100px;         /* Button */
-        gap: var(--spacing-sm);
+        gap: 8px;
         align-items: center;
         background: var(--color-white);
         border: 1px solid var(--color-gray-200);
@@ -411,6 +434,14 @@
 
     .joblist-archive.secondRow {
         background: var(--color-gray-50);
+    }
+
+    .joblist-archive.fixguenstig {
+        background: #FFF9C4 !important;
+    }
+
+    .joblist-archive.fixguenstig:hover {
+        background: #FFF59D !important;
     }
 
     .joblist-archive > div {

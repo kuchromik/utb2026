@@ -4,7 +4,7 @@
 <div class="job-list-header">
     <div class="header-item">Datum</div>
     <div class="header-item">Kunde</div>
-    <div class="header-item">Auftr.</div>
+    <div class="header-item">Auftrag</div>
     <div class="header-item">Menge</div>
     <div class="header-item">Det.</div>
     <div class="header-item">Betrag</div>
@@ -12,6 +12,7 @@
     <div class="header-item">Pap.</div>
     <div class="header-item">Plat.</div>
     <div class="header-item">Druck</div>
+    <div class="header-item">Klar?</div>
     <div class="header-item">Rechg.</div>
     <div class="header-item">Zahlg.</div>
     <div class="header-item" style="grid-column: span 3; text-align: center;">Aktion</div>
@@ -21,16 +22,16 @@
     .job-list-header {
         display: grid;
         grid-template-columns: 
-            140px          /* Datum */
-            minmax(150px, 200px)  /* Kunde */
-            minmax(200px, 1fr)    /* Jobname */
+            120px          /* Datum */
+            130px          /* Kunde */
+            150px          /* Jobname */
             90px           /* Menge */
             minmax(150px, 1fr)    /* Details */
             100px          /* Betrag */
             80px           /* Produzent */
-            80px 80px 80px 80px 80px  /* Checkboxen */
+            80px 80px 80px 80px 80px 80px  /* Checkboxen */
             88px 88px 88px;  /* Buttons */
-        gap: var(--spacing-sm);
+        gap: 8px;
         align-items: center;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border-radius: var(--radius-lg);

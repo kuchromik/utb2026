@@ -4,7 +4,7 @@
 <div class="archive-list-header">
     <div class="header-item">Datum</div>
     <div class="header-item">Kunde</div>
-    <div class="header-item">Auftr.</div>
+    <div class="header-item">Auftrag</div>
     <div class="header-item">Menge</div>
     <div class="header-item">Det.</div>
     <div class="header-item">Betrag</div>

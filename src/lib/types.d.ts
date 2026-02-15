@@ -30,11 +30,13 @@ export type Job = JobFormData & {
     paper_ready?: boolean;
     plates_ready?: boolean;
     print_ready?: boolean;
+    shipped_ready?: boolean;
     invoice_ready?: boolean;
     payed_ready?: boolean;
+    FixGuenstig?: boolean;
 };
 
-export type ReadyType = 'paper' | 'plates' | 'print' | 'invoice' | 'payed';
+export type ReadyType = 'paper' | 'plates' | 'print' | 'shipped' | 'invoice' | 'payed';
 
 export type UnsubscribeFn = () => void;
 
