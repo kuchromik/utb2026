@@ -277,6 +277,7 @@
             paper: "paper_ready",
             plates: "plates_ready",
             print: "print_ready",
+            shipped: "shipped_ready",
             invoice: "invoice_ready",
             payed: "payed_ready"
         };
@@ -307,6 +308,7 @@
             paper_ready: false,
             plates_ready: false,
             print_ready: false,
+            shipped_ready: false,
             invoice_ready: false,
             payed_ready: false,
             archiv: false
