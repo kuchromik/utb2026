@@ -12,8 +12,6 @@
     import JobForm from '$lib/components/JobForm.svelte';
     import JobEditForm from '$lib/components/JobEditForm.svelte';
     import JobListItem from '$lib/components/JobListItem.svelte';
-    import JobListHeader from '$lib/components/JobListHeader.svelte';
-    import ArchiveListHeader from '$lib/components/ArchiveListHeader.svelte';
 
     /** @typedef {import('$lib/types').Customer} Customer */
     /** @typedef {import('$lib/types').JobFormData} JobFormData */
@@ -114,9 +112,18 @@
         return `${lastName.toLowerCase()}|${firstName.toLowerCase()}`;
     }
 
+    /**
+     * Findet das Customer-Objekt basierend auf dem customer Label String
+     * @param {string} customerLabel - Der customer String aus einem Job
+     * @returns {Customer | undefined} Das vollständige Customer-Objekt oder undefined
+     */
+    function getCustomerByLabel(customerLabel) {
+        return customers.find((customer) => getCustomerLabel(customer) === customerLabel);
+    }
+
     /** @param {string} customerLabel */
     function openEditCustomerModal(customerLabel) {
-        const selectedCustomer = customers.find((customer) => getCustomerLabel(customer) === customerLabel);
+        const selectedCustomer = getCustomerByLabel(customerLabel);
         if (!selectedCustomer) {
             console.warn(`Customer not found for label: ${customerLabel}`);
             return;
@@ -531,7 +538,6 @@
         </div>
 
         <h2>{jobs.length} aktive Aufträge:</h2>
-        <JobListHeader />
         <ul>
             {#each jobs as job, index}
                 <li>
@@ -573,7 +579,6 @@
                 placeholder="Suche in Jobname oder Details"
             />
         </div>
-        <ArchiveListHeader />
         <ul>
             {#each getFilteredArchivJobs() as job, index}
                 <li>

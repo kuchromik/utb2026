@@ -203,7 +203,7 @@
             minmax(150px, 1fr)    /* Details */
             100px          /* Betrag */
             80px           /* Produzent */
-            80px 80px 80px 80px 80px 80px  /* Checkboxen */
+            60px 60px 60px 60px 60px 60px  /* Checkboxen */
             88px 88px 88px;  /* Buttons */
         gap: 8px;
         align-items: center;
