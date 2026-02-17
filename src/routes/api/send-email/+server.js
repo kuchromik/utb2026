@@ -1,0 +1,187 @@
+import nodemailer from 'nodemailer';
+import { json } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
+
+/**
+ * @param {{
+ *   request: Request;
+ * }} event
+ */
+export async function POST({ request }) {
+    try {
+        const { customerEmail, customerName, jobname, toShip, trackingNumber } = await request.json();
+
+        // Validierung
+        if (!customerEmail || !customerName || !jobname) {
+            return json({ error: 'Fehlende erforderliche Felder' }, { status: 400 });
+        }
+
+        if (toShip && !trackingNumber) {
+            return json({ error: 'Sendungsverfolgungsnummer ist erforderlich' }, { status: 400 });
+        }
+
+        // SMTP-Konfiguration aus Umgebungsvariablen
+        const smtpHost = env.SMTP_HOST || 'smtp.gmail.com';
+        const smtpPort = parseInt(env.SMTP_PORT || '587');
+        const smtpSecure = env.SMTP_SECURE === 'true';
+        const smtpUser = env.SMTP_USER;
+        const smtpPass = env.SMTP_PASS;
+        const smtpFrom = env.SMTP_FROM || smtpUser;
+
+        // Validierung der SMTP-Credentials
+        if (!smtpUser || !smtpPass) {
+            console.error('SMTP-Credentials fehlen!');
+            return json({ 
+                error: 'Server-Konfigurationsfehler', 
+                details: 'SMTP-Zugangsdaten nicht konfiguriert' 
+            }, { status: 500 });
+        }
+
+        console.log('SMTP-Konfiguration:', {
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpSecure,
+            user: smtpUser,
+            hasPassword: !!smtpPass
+        });
+
+        const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpSecure,
+            auth: {
+                user: smtpUser,
+                pass: smtpPass
+            }
+        });
+
+        // E-Mail-Inhalt erstellen
+        let subject, text, html;
+
+        if (toShip) {
+            subject = `Ihre Bestellung wurde versendet - ${jobname}`;
+            text = `
+Sehr geehrte/r ${customerName},
+
+Ihre Bestellung "${jobname}" wurde erfolgreich versendet.
+
+Sendungsverfolgungsnummer: ${trackingNumber}
+
+Mit dieser Nummer können Sie den Status Ihrer Sendung verfolgen.
+
+Mit freundlichen Grüßen
+Ihr Team
+            `.trim();
+
+            html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .content { background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        .tracking { background: #fff; padding: 15px; border-left: 4px solid #667eea; margin: 15px 0; font-family: monospace; }
+        .footer { margin-top: 20px; font-size: 0.9em; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Ihre Bestellung wurde versendet</h2>
+        </div>
+        <div class="content">
+            <p>Sehr geehrte/r <strong>${customerName}</strong>,</p>
+            <p>Ihre Bestellung "<strong>${jobname}</strong>" wurde erfolgreich versendet.</p>
+            <div class="tracking">
+                <strong>Sendungsverfolgungsnummer:</strong><br>
+                ${trackingNumber}
+            </div>
+            <p>Mit dieser Nummer können Sie den Status Ihrer Sendung verfolgen.</p>
+        </div>
+        <div class="footer">
+            <p>Mit freundlichen Grüßen<br>Ihr Team</p>
+        </div>
+    </div>
+</body>
+</html>
+            `.trim();
+        } else {
+            subject = `Ihre Bestellung ist abholbereit - ${jobname}`;
+            text = `
+Sehr geehrte/r ${customerName},
+
+Ihre Bestellung "${jobname}" ist fertiggestellt und kann während unserer Öffnungszeiten abgeholt werden.
+
+Unsere Öffnungszeiten:
+Montag - Freitag: 8:00 - 17:00 Uhr
+
+Wir freuen uns auf Ihren Besuch!
+
+Mit freundlichen Grüßen
+Ihr Team
+            `.trim();
+
+            html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .content { background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        .hours { background: #fff; padding: 15px; border-left: 4px solid #667eea; margin: 15px 0; }
+        .footer { margin-top: 20px; font-size: 0.9em; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Ihre Bestellung ist abholbereit</h2>
+        </div>
+        <div class="content">
+            <p>Sehr geehrte/r <strong>${customerName}</strong>,</p>
+            <p>Ihre Bestellung "<strong>${jobname}</strong>" ist fertiggestellt und kann während unserer Öffnungszeiten abgeholt werden.</p>
+            <div class="hours">
+                <strong>Unsere Öffnungszeiten:</strong><br>
+                Montag - Freitag: 8:00 - 17:00 Uhr
+            </div>
+            <p>Wir freuen uns auf Ihren Besuch!</p>
+        </div>
+        <div class="footer">
+            <p>Mit freundlichen Grüßen<br>Ihr Team</p>
+        </div>
+    </div>
+</body>
+</html>
+            `.trim();
+        }
+
+        // E-Mail senden
+        const info = await transporter.sendMail({
+            from: smtpFrom,
+            to: customerEmail,
+            subject: subject,
+            text: text,
+            html: html
+        });
+
+        return json({ 
+            success: true, 
+            messageId: info.messageId,
+            message: 'E-Mail erfolgreich versendet' 
+        });
+
+    } catch (error) {
+        console.error('Fehler beim E-Mail-Versand:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+        return json({ 
+            error: 'E-Mail konnte nicht versendet werden', 
+            details: errorMessage
+        }, { status: 500 });
+    }
+}

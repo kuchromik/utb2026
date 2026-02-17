@@ -12,6 +12,7 @@
     import JobForm from '$lib/components/JobForm.svelte';
     import JobEditForm from '$lib/components/JobEditForm.svelte';
     import JobListItem from '$lib/components/JobListItem.svelte';
+    import ShippedConfirmModal from '$lib/components/ShippedConfirmModal.svelte';
 
     /** @typedef {import('$lib/types').Customer} Customer */
     /** @typedef {import('$lib/types').JobFormData} JobFormData */
@@ -44,10 +45,13 @@
     let showArchiveModal = $state(false);
     let showNewCustomerModal = $state(false);
     let showEditCustomerModal = $state(false);
+    let showShippedConfirmModal = $state(false);
     let deleteJobId = $state('');
     let archiveJobId = $state('');
     /** @type {Customer | null} */
     let customerToEdit = $state(null);
+    /** @type {Job | null} */
+    let jobForShippedConfirm = $state(null);
     
     // Edit mode
     /** @type {Job | null} */
@@ -278,6 +282,16 @@
 
     /** @param {ReadyType} whatsIsReady @param {string} ID @param {boolean} isReady */
     async function toggleSomethingIsReady(whatsIsReady, ID, isReady) {
+        // Spezialbehandlung für "shipped" - zeige Bestätigungsmodal
+        if (whatsIsReady === 'shipped' && isReady === false) {
+            const job = jobs.find(j => j.id === ID);
+            if (job) {
+                jobForShippedConfirm = job;
+                showShippedConfirmModal = true;
+                return;
+            }
+        }
+
         const jobRef = doc(db, "Jobs", ID);
         /** @type {Record<ReadyType, string>} */
         const updateField = {
@@ -286,7 +300,8 @@
             print: "print_ready",
             shipped: "shipped_ready",
             invoice: "invoice_ready",
-            payed: "payed_ready"
+            payed: "payed_ready",
+            toShip: "toShip"
         };
         
         const fieldName = updateField[whatsIsReady];
@@ -301,11 +316,82 @@
         }
     }
 
+    /** @param {string | undefined} trackingNumber */
+    async function confirmShippedAndSendEmail(trackingNumber) {
+        if (!jobForShippedConfirm) return;
+
+        try {
+            const jobRef = doc(db, "Jobs", jobForShippedConfirm.id);
+            
+            // Update Job in Firebase
+            /** @type {Record<string, any>} */
+            const updateData = {
+                shipped_ready: true
+            };
+            
+            if (trackingNumber) {
+                updateData.trackingNumber = trackingNumber;
+            }
+            
+            await updateDoc(jobRef, updateData);
+
+            // Suche Kunden-E-Mail per ID
+            const customerId = jobForShippedConfirm.customerId;
+            const jobCustomer = jobForShippedConfirm.customer;
+            const customer = customerId 
+                ? customers.find(c => c.id === customerId)
+                : customers.find(c => {
+                    const customerLabel = getCustomerLabel(c);
+                    return customerLabel === jobCustomer;
+                });
+
+            if (customer && customer.email) {
+                // Sende E-Mail via API
+                const response = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        customerEmail: customer.email,
+                        customerName: jobForShippedConfirm.customer,
+                        jobname: jobForShippedConfirm.jobname,
+                        toShip: Boolean(jobForShippedConfirm.toShip),
+                        trackingNumber: trackingNumber
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('E-Mail wurde erfolgreich versendet!');
+                } else {
+                    alert(`Fehler beim E-Mail-Versand: ${result.error}\n\nDetails: ${result.details || 'Keine weiteren Informationen'}`);
+                }
+            } else {
+                alert('Warnung: Keine E-Mail-Adresse für diesen Kunden gefunden. Der Status wurde aktualisiert, aber keine E-Mail wurde versendet.');
+            }
+        } catch (error) {
+            console.error('Fehler beim Bestätigen und E-Mail-Versand:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            alert('Fehler beim Verarbeiten der Anfrage: ' + errorMessage);
+        } finally {
+            showShippedConfirmModal = false;
+            jobForShippedConfirm = null;
+        }
+    }
+
+    function cancelShippedConfirm() {
+        showShippedConfirmModal = false;
+        jobForShippedConfirm = null;
+    }
+
     /** @param {JobFormData} jobData */
     async function addNewJob(jobData) {
         const colRef = doc(collection(db, "Jobs"));
         await setDoc(colRef, {
             jobstart: Date.now() / 1000,
+            customerId: jobData.customerId,
             customer: jobData.customer,
             jobname: jobData.jobname,
             quantity: jobData.quantity,
@@ -318,6 +404,7 @@
             shipped_ready: false,
             invoice_ready: false,
             payed_ready: false,
+            toShip: false,
             archiv: false
         });
     }
@@ -449,6 +536,7 @@
             const colRef = doc(collection(db, "Jobs"));
             await setDoc(colRef, {
                 jobstart: Date.now() / 1000,
+                customerId: job.customerId || '',
                 customer: job.customer,
                 jobname: job.jobname,
                 quantity: job.quantity,
@@ -460,6 +548,7 @@
                 print_ready: false,
                 invoice_ready: false,
                 payed_ready: false,
+                toShip: false,
                 archiv: false
             });
             showArchiv = false;
@@ -484,6 +573,7 @@
         try {
             const jobRef = doc(db, "Jobs", jobToEdit.id);
             await updateDoc(jobRef, {
+                customerId: changedData.customerId,
                 customer: changedData.customer,
                 jobname: changedData.jobname,
                 quantity: changedData.quantity,
@@ -626,6 +716,14 @@
     customer={customerToEdit}
     onComplete={updateCustomer}
 />
+
+{#if showShippedConfirmModal && jobForShippedConfirm}
+    <ShippedConfirmModal
+        job={jobForShippedConfirm}
+        onConfirm={confirmShippedAndSendEmail}
+        onCancel={cancelShippedConfirm}
+    />
+{/if}
 
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');

@@ -71,8 +71,13 @@
         error = '';
         
         try {
+            // Finde den ausgewählten Kunden
+            const customer = customers.find(c => c.id === selectedCustomer);
+            const customerLabel = customer ? getCustomerLabel(customer) : selectedCustomer;
+            
             await onSubmit({
-                customer: selectedCustomer,
+                customerId: selectedCustomer,
+                customer: customerLabel,
                 jobname: jobname.trim(),
                 quantity: Number(quantity),
                 details: details.trim(),
@@ -111,7 +116,11 @@
             error = 'Bitte zuerst einen bestehenden Kunden auswählen';
             return;
         }
-        onEditCustomer(selectedCustomer);
+        // Finde den Kunden anhand der ID und übergebe das Label
+        const customer = customers.find(c => c.id === selectedCustomer);
+        if (customer) {
+            onEditCustomer(getCustomerLabel(customer));
+        }
     }
 
     /** @param {Customer} customer */
@@ -150,7 +159,7 @@
                 <option value="" disabled selected>Kunde ?</option>
                 <option value="Neuer Kunde">➕ Neuer Kunde</option>
                 {#each customers as customer}
-                    <option value={getCustomerLabel(customer)}>{getCustomerLabel(customer)}</option>
+                    <option value={customer.id}>{getCustomerLabel(customer)}</option>
                 {/each}
             </select>
             <p class="customer-hint">Für „Kunde bearbeiten“ bitte zuerst einen bestehenden Kunden auswählen.</p>

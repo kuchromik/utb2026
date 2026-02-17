@@ -154,6 +154,21 @@
             </label>
         </div>
         
+        <div class="ready">
+            <label>
+                Versand?
+                <input 
+                    type="checkbox" 
+                    name="Versand?" 
+                    checked={Boolean(job.toShip)}
+                    onchange={(event) => {
+                        const target = /** @type {HTMLInputElement} */ (event.currentTarget);
+                        onToggleReady("toShip", job.id, !target.checked);
+                    }}
+                />
+            </label>
+        </div>
+        
         <button onclick={() => onEdit(job, index)}>
             Bearbeiten
         </button>
@@ -203,7 +218,7 @@
             minmax(150px, 1fr)    /* Details */
             100px          /* Betrag */
             80px           /* Produzent */
-            60px 60px 60px 60px 60px 60px  /* Checkboxen */
+            60px 60px 60px 60px 60px 60px 60px  /* Checkboxen */
             88px 88px 88px;  /* Buttons */
         gap: 8px;
         align-items: center;

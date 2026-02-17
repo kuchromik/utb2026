@@ -15,7 +15,7 @@
         onEditCustomer
     } = $props();
 
-    let customer = $state(job.customer);
+    let customer = $state(job.customerId || job.customer);
     let jobname = $state(job.jobname);
     let quantity = $state(job.quantity);
     let details = $state(job.details);
@@ -71,8 +71,13 @@
         error = '';
         
         try {
+            // Finde den ausgewählten Kunden
+            const selectedCust = customers.find(c => c.id === customer);
+            const customerLabel = selectedCust ? getCustomerLabel(selectedCust) : customer;
+            
             await onSave({
-                customer: customer,
+                customerId: customer,
+                customer: customerLabel,
                 jobname: jobname.trim(),
                 quantity: Number(quantity),
                 details: details.trim(),
@@ -89,7 +94,7 @@
     function handleCustomerChange() {
         if (customer === "Neuer Kunde") {
             onNewCustomer();
-            customer = job.customer;
+            customer = job.customerId || job.customer;
         }
     }
 
@@ -98,7 +103,11 @@
             error = 'Bitte zuerst einen bestehenden Kunden auswählen';
             return;
         }
-        onEditCustomer(customer);
+        // Finde den Kunden anhand der ID und übergebe das Label
+        const selectedCust = customers.find(c => c.id === customer);
+        if (selectedCust) {
+            onEditCustomer(getCustomerLabel(selectedCust));
+        }
     }
 
     /** @param {Customer} customerData */
@@ -136,7 +145,7 @@
             <option value="" disabled>Kunde ?</option>
             <option value="Neuer Kunde">➕ Neuer Kunde</option>
             {#each customers as cust}
-                <option value={getCustomerLabel(cust)}>{getCustomerLabel(cust)}</option>
+                <option value={cust.id}>{getCustomerLabel(cust)}</option>
             {/each}
         </select>
         <p class="customer-hint">Für „Kunde bearbeiten“ bitte zuerst einen bestehenden Kunden auswählen.</p>

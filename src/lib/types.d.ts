@@ -15,6 +15,7 @@ export type Customer = {
 };
 
 export type JobFormData = {
+    customerId: string;
     customer: string;
     jobname: string;
     quantity: number;
@@ -34,9 +35,11 @@ export type Job = JobFormData & {
     invoice_ready?: boolean;
     payed_ready?: boolean;
     FixGuenstig?: boolean;
+    toShip?: boolean;
+    trackingNumber?: string;
 };
 
-export type ReadyType = 'paper' | 'plates' | 'print' | 'shipped' | 'invoice' | 'payed';
+export type ReadyType = 'paper' | 'plates' | 'print' | 'shipped' | 'invoice' | 'payed' | 'toShip';
 
 export type UnsubscribeFn = () => void;
 

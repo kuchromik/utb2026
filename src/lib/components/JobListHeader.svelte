@@ -15,6 +15,7 @@
     <div class="header-item">Klar?</div>
     <div class="header-item">Rechg.</div>
     <div class="header-item">Zahlg.</div>
+    <div class="header-item">Vers.</div>
     <div class="header-item" style="grid-column: span 3; text-align: center;">Aktion</div>
 </div>
 
@@ -29,7 +30,7 @@
             minmax(150px, 1fr)    /* Details */
             100px          /* Betrag */
             80px           /* Produzent */
-            80px 80px 80px 80px 80px 80px  /* Checkboxen */
+            60px 60px 60px 60px 60px 60px 60px  /* Checkboxen */
             88px 88px 88px;  /* Buttons */
         gap: 8px;
         align-items: center;
