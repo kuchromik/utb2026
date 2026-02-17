@@ -9,10 +9,10 @@ import { env } from '$env/dynamic/private';
  */
 export async function POST({ request }) {
     try {
-        const { customerEmail, customerName, jobname, toShip, trackingNumber } = await request.json();
+        const { customerEmail, customerFirstName, customerLastName, jobname, toShip, trackingNumber } = await request.json();
 
         // Validierung
-        if (!customerEmail || !customerName || !jobname) {
+        if (!customerEmail || !customerFirstName || !customerLastName || !jobname) {
             return json({ error: 'Fehlende erforderliche Felder' }, { status: 400 });
         }
 
@@ -61,16 +61,16 @@ export async function POST({ request }) {
         if (toShip) {
             subject = `Ihre Bestellung wurde versendet - ${jobname}`;
             text = `
-Sehr geehrte/r ${customerName},
+Hallo ${customerFirstName} ${customerLastName},
 
 Ihre Bestellung "${jobname}" wurde erfolgreich versendet.
 
-Sendungsverfolgungsnummer: ${trackingNumber}
+Link zur Sendungsverfolgung: ${trackingNumber}
 
-Mit dieser Nummer können Sie den Status Ihrer Sendung verfolgen.
+Bitte beachten Sie, dass es einige Stunden dauern kann, bis der Paketdienst einen konkreten Liefertermin bereitstellt.
 
 Mit freundlichen Grüßen
-Ihr Team
+Kai-Uwe Chromik
             `.trim();
 
             html = `
@@ -93,16 +93,16 @@ Ihr Team
             <h2>Ihre Bestellung wurde versendet</h2>
         </div>
         <div class="content">
-            <p>Sehr geehrte/r <strong>${customerName}</strong>,</p>
+            <p>Hallo <strong>${customerFirstName} ${customerLastName}</strong>,</p>
             <p>Ihre Bestellung "<strong>${jobname}</strong>" wurde erfolgreich versendet.</p>
             <div class="tracking">
-                <strong>Sendungsverfolgungsnummer:</strong><br>
-                ${trackingNumber}
+                <strong>Link zur Sendungsverfolgung:</strong><br>
+                <a href="${trackingNumber}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">${trackingNumber}</a>
             </div>
-            <p>Mit dieser Nummer können Sie den Status Ihrer Sendung verfolgen.</p>
+            <p>Bitte beachten Sie, dass es einige Stunden dauern kann, bis der Paketdienst einen konkreten Liefertermin bereitstellt.</p>
         </div>
         <div class="footer">
-            <p>Mit freundlichen Grüßen<br>Ihr Team</p>
+            <p>Mit freundlichen Grüßen<br>Kai-Uwe Chromik</p>
         </div>
     </div>
 </body>
@@ -111,17 +111,17 @@ Ihr Team
         } else {
             subject = `Ihre Bestellung ist abholbereit - ${jobname}`;
             text = `
-Sehr geehrte/r ${customerName},
+Hallo ${customerFirstName} ${customerLastName},
 
 Ihre Bestellung "${jobname}" ist fertiggestellt und kann während unserer Öffnungszeiten abgeholt werden.
 
 Unsere Öffnungszeiten:
-Montag - Freitag: 8:00 - 17:00 Uhr
+Montag - Donnerstag: 9:00 - 15:00 Uhr oder nach Absprache
 
 Wir freuen uns auf Ihren Besuch!
 
 Mit freundlichen Grüßen
-Ihr Team
+Kai-Uwe Chromik
             `.trim();
 
             html = `
@@ -144,16 +144,16 @@ Ihr Team
             <h2>Ihre Bestellung ist abholbereit</h2>
         </div>
         <div class="content">
-            <p>Sehr geehrte/r <strong>${customerName}</strong>,</p>
+            <p>Hallo <strong>${customerFirstName} ${customerLastName}</strong>,</p>
             <p>Ihre Bestellung "<strong>${jobname}</strong>" ist fertiggestellt und kann während unserer Öffnungszeiten abgeholt werden.</p>
             <div class="hours">
                 <strong>Unsere Öffnungszeiten:</strong><br>
-                Montag - Freitag: 8:00 - 17:00 Uhr
+                Montag - Donnerstag: 9:00 - 15:00 Uhr oder nach Absprache
             </div>
             <p>Wir freuen uns auf Ihren Besuch!</p>
         </div>
         <div class="footer">
-            <p>Mit freundlichen Grüßen<br>Ihr Team</p>
+            <p>Mit freundlichen Grüßen<br>Kai-Uwe Chromik</p>
         </div>
     </div>
 </body>

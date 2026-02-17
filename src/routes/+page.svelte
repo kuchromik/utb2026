@@ -338,14 +338,62 @@
             // Suche Kunden-E-Mail per ID
             const customerId = jobForShippedConfirm.customerId;
             const jobCustomer = jobForShippedConfirm.customer;
-            const customer = customerId 
-                ? customers.find(c => c.id === customerId)
-                : customers.find(c => {
-                    const customerLabel = getCustomerLabel(c);
-                    return customerLabel === jobCustomer;
+            
+            console.log('Debugging E-Mail-Suche:');
+            console.log('- Job customerId:', customerId);
+            console.log('- Job customer:', jobCustomer);
+            console.log('- Verfügbare Kunden:', customers.length);
+            
+            let customer = undefined;
+            
+            // Versuch 1: Suche per customerId
+            if (customerId) {
+                customer = customers.find(c => c.id === customerId);
+                console.log('- Versuch 1 (per ID): ', customer ? 'GEFUNDEN' : 'NICHT GEFUNDEN');
+            }
+            
+            // Versuch 2: Exakter Match mit aktuellem Label-Format
+            if (!customer) {
+                customer = customers.find(c => getCustomerLabel(c) === jobCustomer);
+                console.log('- Versuch 2 (exaktes Label): ', customer ? 'GEFUNDEN' : 'NICHT GEFUNDEN');
+            }
+            
+            // Versuch 3: Flexibles Matching für alte Formate
+            // Format: "Firma Nachname Vorname" -> "Firma – Nachname, Vorname"
+            if (!customer) {
+                customer = customers.find(c => {
+                    const company = c.company?.trim() || '';
+                    const lastName = c.lastName?.trim() || '';
+                    const firstName = c.firstName?.trim() || '';
+                    
+                    // Prüfe verschiedene Kombinationen
+                    const variants = [
+                        // "Firma Nachname Vorname"
+                        company && lastName && firstName ? `${company} ${lastName} ${firstName}` : '',
+                        // "Firma Vorname Nachname"
+                        company && lastName && firstName ? `${company} ${firstName} ${lastName}` : '',
+                        // "Vorname Nachname" (ohne Firma)
+                        firstName && lastName ? `${firstName} ${lastName}` : '',
+                        // "Nachname Vorname" (ohne Firma)
+                        firstName && lastName ? `${lastName} ${firstName}` : '',
+                        // Nur Firma
+                        company,
+                    ].filter(Boolean);
+                    
+                    const match = variants.some(variant => variant === jobCustomer);
+                    return match;
                 });
+                console.log('- Versuch 3 (flexibles Matching): ', customer ? 'GEFUNDEN' : 'NICHT GEFUNDEN');
+            }
 
-            if (customer && customer.email) {
+            console.log('- Gefundener Kunde:', customer);
+            console.log('- Kunden E-Mail:', customer?.email);
+
+            if (!customer) {
+                alert(`Warnung: Kunde nicht gefunden!\n\nGesucht wurde:\n- CustomerId: ${customerId || 'nicht vorhanden'}\n- Customer Label: ${jobCustomer}\n\nDer Status wurde aktualisiert, aber keine E-Mail wurde versendet.`);
+            } else if (!customer.email || customer.email.trim() === '') {
+                alert(`Warnung: Kunde "${jobCustomer}" gefunden, aber keine E-Mail-Adresse hinterlegt!\n\nBitte E-Mail-Adresse im Kundendatensatz nachtragen.\n\nDer Status wurde aktualisiert, aber keine E-Mail wurde versendet.`);
+            } else {
                 // Sende E-Mail via API
                 const response = await fetch('/api/send-email', {
                     method: 'POST',
@@ -354,7 +402,8 @@
                     },
                     body: JSON.stringify({
                         customerEmail: customer.email,
-                        customerName: jobForShippedConfirm.customer,
+                        customerFirstName: customer.firstName,
+                        customerLastName: customer.lastName,
                         jobname: jobForShippedConfirm.jobname,
                         toShip: Boolean(jobForShippedConfirm.toShip),
                         trackingNumber: trackingNumber
@@ -368,8 +417,6 @@
                 } else {
                     alert(`Fehler beim E-Mail-Versand: ${result.error}\n\nDetails: ${result.details || 'Keine weiteren Informationen'}`);
                 }
-            } else {
-                alert('Warnung: Keine E-Mail-Adresse für diesen Kunden gefunden. Der Status wurde aktualisiert, aber keine E-Mail wurde versendet.');
             }
         } catch (error) {
             console.error('Fehler beim Bestätigen und E-Mail-Versand:', error);
