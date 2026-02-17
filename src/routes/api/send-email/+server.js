@@ -161,10 +161,11 @@ Kai-Uwe Chromik
             `.trim();
         }
 
-        // E-Mail senden
+        // E-Mail senden (mit BCC-Kopie an Versandlog)
         const info = await transporter.sendMail({
             from: smtpFrom,
             to: customerEmail,
+            bcc: 'versandlog@online.de',
             subject: subject,
             text: text,
             html: html
