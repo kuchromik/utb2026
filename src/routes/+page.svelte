@@ -81,7 +81,8 @@
         return archivJobs.filter((job) => {
             const jobname = job.jobname?.toLowerCase() ?? '';
             const details = job.details?.toLowerCase() ?? '';
-            return jobname.includes(queryText) || details.includes(queryText);
+            const customer = job.customer?.toLowerCase() ?? '';
+            return jobname.includes(queryText) || details.includes(queryText) || customer.includes(queryText);
         });
     }
 
@@ -577,6 +578,27 @@
         archiveSearch = '';
     }
 
+    /** Lädt alle archivierten Jobs ohne Kundenfilter */
+    function getAllArchivJobs() {
+        if (unsubscribeArchivJobs) unsubscribeArchivJobs();
+        archivJobs = [];
+        const q = query(collection(db, "Jobs"), where("archiv", "==", true));
+        unsubscribeArchivJobs = onSnapshot(q, (querySnapshot) => {
+            archivJobs = [];
+            querySnapshot.forEach((doc) => {
+                let ID = doc.id;
+                const archivJobData = /** @type {Job} */ ({ id: ID, ...doc.data() });
+                archivJobs = [...archivJobs, archivJobData];
+            });
+            archivJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
+        }, (error) => {
+            console.error("Error fetching all archive jobs:", error);
+        });
+        showArchiv = true;
+        archiveCustomer = '';
+        archiveSearch = '';
+    }
+
     /** @param {Job} job */
     async function addNewJobFromArchiv(job) {
         try {
@@ -672,6 +694,7 @@
                     <option value={getCustomerLabel(customer)}>{getCustomerLabel(customer)}</option>
                 {/each}
             </select>
+            <button class="search-all-btn" onclick={() => getAllArchivJobs()}>🔍 Gesamtes Archiv durchsuchen</button>
         </div>
 
         <h2>{jobs.length} aktive Aufträge:</h2>
@@ -713,7 +736,7 @@
             <input
                 type="text"
                 bind:value={archiveSearch}
-                placeholder="Suche in Jobname oder Details"
+                placeholder="Suche in Kunde, Jobname oder Details"
             />
         </div>
         <ul>
@@ -902,6 +925,20 @@
 
     .archive-selector {
         margin-bottom: var(--spacing-lg);
+        display: flex;
+        gap: var(--spacing-md);
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .search-all-btn {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        white-space: nowrap;
+    }
+
+    .search-all-btn:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
     }
 
     .archive-search {
