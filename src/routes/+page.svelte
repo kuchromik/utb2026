@@ -206,6 +206,29 @@
             console.info(`Migrated ${updatedCount} legacy customer documents.`);
         }
     }
+
+    async function migrateJobsFinishedField() {
+        const jobsCollection = collection(db, "Jobs");
+        const snapshot = await getDocs(query(jobsCollection));
+        const batch = writeBatch(db);
+        let updatedCount = 0;
+
+        snapshot.forEach((jobDoc) => {
+            const jobData = jobDoc.data();
+            // Wenn das finished-Feld nicht existiert, setze es auf false
+            if (jobData.finished === undefined) {
+                batch.update(jobDoc.ref, {
+                    finished: false
+                });
+                updatedCount += 1;
+            }
+        });
+
+        if (updatedCount > 0) {
+            await batch.commit();
+            console.info(`Migrated ${updatedCount} jobs with finished field.`);
+        }
+    }
     
     // Cleanup listeners on component destroy
     onDestroy(() => {
@@ -223,8 +246,9 @@
 
         try {
             await migrateLegacyCustomers();
+            await migrateJobsFinishedField();
         } catch (migrationError) {
-            console.error("Error migrating legacy customers:", migrationError);
+            console.error("Error migrating legacy data:", migrationError);
         }
 
         getJobsFromCollection();
@@ -282,13 +306,17 @@
     async function getJobsFromCollection() {
         if (unsubscribeJobs) unsubscribeJobs();
         jobs = [];
-        const q = query(collection(db, "Jobs"), where("archiv", "==", false), where("finished", "==", false));
+        // Lade alle nicht-archivierten Jobs und filtere clientseitig
+        const q = query(collection(db, "Jobs"), where("archiv", "==", false));
         unsubscribeJobs = onSnapshot(q, (querySnapshot) => {
             jobs = [];
             querySnapshot.forEach((doc) => {
                 let ID = doc.id;
                 const jobData = /** @type {Job} */ ({ id: ID, ...doc.data() });
-                jobs = [...jobs, jobData];
+                // Zeige nur Jobs, die nicht finished sind (oder das Feld nicht haben)
+                if (!jobData.finished) {
+                    jobs = [...jobs, jobData];
+                }
             });
             jobs.sort((a, b) => (b.jobstart) - (a.jobstart));
         }, (error) => {
@@ -299,13 +327,17 @@
     async function getFinishedJobsFromCollection() {
         if (unsubscribeFinishedJobs) unsubscribeFinishedJobs();
         finishedJobs = [];
-        const q = query(collection(db, "Jobs"), where("archiv", "==", false), where("finished", "==", true));
+        // Lade alle nicht-archivierten Jobs und filtere nach finished === true
+        const q = query(collection(db, "Jobs"), where("archiv", "==", false));
         unsubscribeFinishedJobs = onSnapshot(q, (querySnapshot) => {
             finishedJobs = [];
             querySnapshot.forEach((doc) => {
                 let ID = doc.id;
                 const jobData = /** @type {Job} */ ({ id: ID, ...doc.data() });
-                finishedJobs = [...finishedJobs, jobData];
+                // Zeige nur Jobs, die explizit finished === true sind
+                if (jobData.finished === true) {
+                    finishedJobs = [...finishedJobs, jobData];
+                }
             });
             finishedJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
         }, (error) => {
