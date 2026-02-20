@@ -1,7 +1,7 @@
 <script>
 </script>
 
-<div class="job-list-header">
+<div class="finished-job-list-header">
     <div class="header-item">Datum</div>
     <div class="header-item">Kunde</div>
     <div class="header-item">Auftrag</div>
@@ -9,17 +9,12 @@
     <div class="header-item">Det.</div>
     <div class="header-item">Betrag</div>
     <div class="header-item">Prod.</div>
-    <div class="header-item">Pap.</div>
-    <div class="header-item">Plat.</div>
-    <div class="header-item">Druck</div>
-    <div class="header-item">Klar?</div>
     <div class="header-item">Rechg.</div>
-    <div class="header-item">Vers.</div>
     <div class="header-item" style="grid-column: span 3; text-align: center;">Aktion</div>
 </div>
 
 <style>
-    .job-list-header {
+    .finished-job-list-header {
         display: grid;
         grid-template-columns: 
             120px          /* Datum */
@@ -29,11 +24,11 @@
             minmax(150px, 1fr)    /* Details */
             100px          /* Betrag */
             80px           /* Produzent */
-            60px 60px 60px 60px 60px 60px  /* Checkboxen */
+            60px           /* Rechnung Checkbox */
             88px 88px 88px;  /* Buttons */
         gap: 8px;
         align-items: center;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         border-radius: var(--radius-lg);
         padding: var(--spacing-md) var(--spacing-lg);
         margin-bottom: var(--spacing-sm);
@@ -60,7 +55,7 @@
         text-align: right;
     }
 
-    .header-item:nth-child(n+8):nth-child(-n+12) {
+    .header-item:nth-child(8) {
         text-align: center;
         font-size: var(--font-size-xs);
     }

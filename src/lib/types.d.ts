@@ -28,18 +28,18 @@ export type Job = JobFormData & {
     id: string;
     jobstart: number;
     archiv: boolean;
+    finished?: boolean;
     paper_ready?: boolean;
     plates_ready?: boolean;
     print_ready?: boolean;
     shipped_ready?: boolean;
     invoice_ready?: boolean;
-    payed_ready?: boolean;
     FixGuenstig?: boolean;
     toShip?: boolean;
     trackingNumber?: string;
 };
 
-export type ReadyType = 'paper' | 'plates' | 'print' | 'shipped' | 'invoice' | 'payed' | 'toShip';
+export type ReadyType = 'paper' | 'plates' | 'print' | 'shipped' | 'invoice' | 'toShip';
 
 export type UnsubscribeFn = () => void;
 

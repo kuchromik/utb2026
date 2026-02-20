@@ -12,6 +12,8 @@
     import JobForm from '$lib/components/JobForm.svelte';
     import JobEditForm from '$lib/components/JobEditForm.svelte';
     import JobListItem from '$lib/components/JobListItem.svelte';
+    import FinishedJobListItem from '$lib/components/FinishedJobListItem.svelte';
+    import FinishedJobListHeader from '$lib/components/FinishedJobListHeader.svelte';
     import ShippedConfirmModal from '$lib/components/ShippedConfirmModal.svelte';
 
     /** @typedef {import('$lib/types').Customer} Customer */
@@ -22,10 +24,13 @@
 
     let loggedIn = $state(false);
     let showArchiv = $state(false);
+    let showFinished = $state(false);
     /** @type {Customer[]} */
     let customers = $state([]);
     /** @type {Job[]} */
     let jobs = $state([]);
+    /** @type {Job[]} */
+    let finishedJobs = $state([]);
     /** @type {Job[]} */
     let archivJobs = $state([]);
     let user = $state('');
@@ -37,6 +42,8 @@
     let unsubscribeCustomers = null;
     /** @type {UnsubscribeFn | null} */
     let unsubscribeJobs = null;
+    /** @type {UnsubscribeFn | null} */
+    let unsubscribeFinishedJobs = null;
     /** @type {UnsubscribeFn | null} */
     let unsubscribeArchivJobs = null;
     
@@ -204,6 +211,7 @@
     onDestroy(() => {
         if (unsubscribeCustomers) unsubscribeCustomers();
         if (unsubscribeJobs) unsubscribeJobs();
+        if (unsubscribeFinishedJobs) unsubscribeFinishedJobs();
         if (unsubscribeArchivJobs) unsubscribeArchivJobs();
     });
 
@@ -220,6 +228,7 @@
         }
 
         getJobsFromCollection();
+        getFinishedJobsFromCollection();
         getCustomersFromCollection();
     }
 
@@ -227,8 +236,10 @@
         await signOut(auth);
         loggedIn = false;
         showArchiv = false;
+        showFinished = false;
         customers = [];
         jobs = [];
+        finishedJobs = [];
         user = '';
         archivJobs = [];
         
@@ -240,6 +251,10 @@
         if (unsubscribeJobs) {
             unsubscribeJobs();
             unsubscribeJobs = null;
+        }
+        if (unsubscribeFinishedJobs) {
+            unsubscribeFinishedJobs();
+            unsubscribeFinishedJobs = null;
         }
         if (unsubscribeArchivJobs) {
             unsubscribeArchivJobs();
@@ -267,7 +282,7 @@
     async function getJobsFromCollection() {
         if (unsubscribeJobs) unsubscribeJobs();
         jobs = [];
-        const q = query(collection(db, "Jobs"), where("archiv", "==", false));
+        const q = query(collection(db, "Jobs"), where("archiv", "==", false), where("finished", "==", false));
         unsubscribeJobs = onSnapshot(q, (querySnapshot) => {
             jobs = [];
             querySnapshot.forEach((doc) => {
@@ -278,6 +293,23 @@
             jobs.sort((a, b) => (b.jobstart) - (a.jobstart));
         }, (error) => {
             console.error("Error fetching jobs:", error);
+        });
+    }
+
+    async function getFinishedJobsFromCollection() {
+        if (unsubscribeFinishedJobs) unsubscribeFinishedJobs();
+        finishedJobs = [];
+        const q = query(collection(db, "Jobs"), where("archiv", "==", false), where("finished", "==", true));
+        unsubscribeFinishedJobs = onSnapshot(q, (querySnapshot) => {
+            finishedJobs = [];
+            querySnapshot.forEach((doc) => {
+                let ID = doc.id;
+                const jobData = /** @type {Job} */ ({ id: ID, ...doc.data() });
+                finishedJobs = [...finishedJobs, jobData];
+            });
+            finishedJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
+        }, (error) => {
+            console.error("Error fetching finished jobs:", error);
         });
     }
 
@@ -301,7 +333,6 @@
             print: "print_ready",
             shipped: "shipped_ready",
             invoice: "invoice_ready",
-            payed: "payed_ready",
             toShip: "toShip"
         };
         
@@ -327,7 +358,8 @@
             // Update Job in Firebase
             /** @type {Record<string, any>} */
             const updateData = {
-                shipped_ready: true
+                shipped_ready: true,
+                finished: true
             };
             
             if (trackingNumber) {
@@ -451,9 +483,9 @@
             print_ready: false,
             shipped_ready: false,
             invoice_ready: false,
-            payed_ready: false,
             toShip: false,
-            archiv: false
+            archiv: false,
+            finished: false
         });
     }
 
@@ -616,9 +648,9 @@
                 plates_ready: false,
                 print_ready: false,
                 invoice_ready: false,
-                payed_ready: false,
                 toShip: false,
-                archiv: false
+                archiv: false,
+                finished: false
             });
             showArchiv = false;
         } catch (error) {
@@ -676,7 +708,7 @@
     
     <hr>
 
-    {#if loggedIn && !showArchiv}
+    {#if loggedIn && !showArchiv && !showFinished}
         <JobForm 
             {customers}
             onSubmit={addNewJob}
@@ -697,7 +729,12 @@
             <button class="search-all-btn" onclick={() => getAllArchivJobs()}>🔍 Gesamtes Archiv durchsuchen</button>
         </div>
 
-        <h2>{jobs.length} aktive Aufträge:</h2>
+        <div class="section-header">
+            <h2>{jobs.length} aktive Aufträge:</h2>
+            <button class="finished-btn" onclick={() => {showFinished = true;}}>
+                ✓ Fertige Aufträge anzeigen ({finishedJobs.length})
+            </button>
+        </div>
         <ul>
             {#each jobs as job, index}
                 <li>
@@ -722,6 +759,27 @@
                             onEditCustomer={openEditCustomerModal}
                         />
                     {/if}
+                </li>
+            {/each}
+        </ul>
+    {:else if loggedIn && showFinished}
+        <div class="finished-header">
+            <h2>✓ {finishedJobs.length} fertige Aufträge</h2>
+            <button onclick={() => {showFinished = false;}}>
+                ← Zurück zu aktiven Aufträgen
+            </button>
+        </div>
+        <FinishedJobListHeader />
+        <ul>
+            {#each finishedJobs as job, index}
+                <li>
+                    <FinishedJobListItem 
+                        {job}
+                        {index}
+                        onToggleReady={toggleSomethingIsReady}
+                        onArchive={confirmArchiveJob}
+                        onDelete={confirmDeleteJob}
+                    />
                 </li>
             {/each}
         </ul>
@@ -958,5 +1016,51 @@
         outline: none;
         border-color: var(--color-primary);
         box-shadow: 0 0 0 3px var(--color-primary-light);
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-md);
+    }
+
+    .section-header h2 {
+        margin: 0;
+    }
+
+    .finished-btn {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        white-space: nowrap;
+    }
+
+    .finished-btn:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    }
+
+    .finished-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-lg);
+        margin-bottom: var(--spacing-lg);
+        border: 2px solid #10b981;
+    }
+
+    .finished-header h2 {
+        margin: 0;
+        color: #065f46;
+    }
+
+    .finished-header button {
+        background: #10b981;
+        color: white;
+    }
+
+    .finished-header button:hover {
+        background: #059669;
     }
 </style>

@@ -141,21 +141,6 @@
         
         <div class="ready">
             <label>
-                Zahlung?
-                <input 
-                    type="checkbox" 
-                    name="Zahlung?" 
-                    checked={Boolean(job.payed_ready)}
-                    onchange={(event) => {
-                        const target = /** @type {HTMLInputElement} */ (event.currentTarget);
-                        onToggleReady("payed", job.id, !target.checked);
-                    }}
-                />
-            </label>
-        </div>
-        
-        <div class="ready">
-            <label>
                 Versand?
                 <input 
                     type="checkbox" 
@@ -218,7 +203,7 @@
             minmax(150px, 1fr)    /* Details */
             100px          /* Betrag */
             80px           /* Produzent */
-            60px 60px 60px 60px 60px 60px 60px  /* Checkboxen */
+            60px 60px 60px 60px 60px 60px  /* Checkboxen (6 statt 7) */
             88px 88px 88px;  /* Buttons */
         gap: 8px;
         align-items: center;
