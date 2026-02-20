@@ -309,16 +309,24 @@
         // Lade alle nicht-archivierten Jobs und filtere clientseitig
         const q = query(collection(db, "Jobs"), where("archiv", "==", false));
         unsubscribeJobs = onSnapshot(q, (querySnapshot) => {
-            jobs = [];
+            /** @type {Job[]} */
+            const activeJobs = [];
             querySnapshot.forEach((doc) => {
                 let ID = doc.id;
                 const jobData = /** @type {Job} */ ({ id: ID, ...doc.data() });
-                // Zeige nur Jobs, die nicht finished sind (oder das Feld nicht haben)
-                if (!jobData.finished) {
-                    jobs = [...jobs, jobData];
+                // Debug-Logging
+                console.log(`Job ${jobData.jobname}: finished=${jobData.finished}, archiv=${jobData.archiv}`);
+                // Zeige nur Jobs, die NICHT finished sind (finished muss explizit !== true sein)
+                if (jobData.finished !== true) {
+                    activeJobs.push(jobData);
+                    console.log(`  -> Hinzugefügt zu aktiven Jobs`);
+                } else {
+                    console.log(`  -> Übersprungen (finished=true)`);
                 }
             });
-            jobs.sort((a, b) => (b.jobstart) - (a.jobstart));
+            activeJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
+            jobs = activeJobs;
+            console.log(`Aktive Jobs gesamt: ${jobs.length}`);
         }, (error) => {
             console.error("Error fetching jobs:", error);
         });
@@ -330,16 +338,20 @@
         // Lade alle nicht-archivierten Jobs und filtere nach finished === true
         const q = query(collection(db, "Jobs"), where("archiv", "==", false));
         unsubscribeFinishedJobs = onSnapshot(q, (querySnapshot) => {
-            finishedJobs = [];
+            /** @type {Job[]} */
+            const completedJobs = [];
             querySnapshot.forEach((doc) => {
                 let ID = doc.id;
                 const jobData = /** @type {Job} */ ({ id: ID, ...doc.data() });
                 // Zeige nur Jobs, die explizit finished === true sind
                 if (jobData.finished === true) {
-                    finishedJobs = [...finishedJobs, jobData];
+                    completedJobs.push(jobData);
+                    console.log(`Fertiger Job: ${jobData.jobname} (finished=${jobData.finished})`);
                 }
             });
-            finishedJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
+            completedJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
+            finishedJobs = completedJobs;
+            console.log(`Fertige Jobs gesamt: ${finishedJobs.length}`);
         }, (error) => {
             console.error("Error fetching finished jobs:", error);
         });
