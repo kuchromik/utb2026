@@ -315,13 +315,13 @@
                 let ID = doc.id;
                 const jobData = /** @type {Job} */ ({ id: ID, ...doc.data() });
                 // Debug-Logging
-                console.log(`Job ${jobData.jobname}: finished=${jobData.finished}, archiv=${jobData.archiv}`);
-                // Zeige nur Jobs, die NICHT finished sind (finished muss explizit !== true sein)
-                if (jobData.finished !== true) {
+                console.log(`Job ${jobData.jobname}: shipped_ready=${jobData.shipped_ready}, archiv=${jobData.archiv}`);
+                // Zeige nur Jobs, die NICHT shipped_ready sind (shipped_ready muss explizit !== true sein)
+                if (jobData.shipped_ready !== true) {
                     activeJobs.push(jobData);
                     console.log(`  -> Hinzugefügt zu aktiven Jobs`);
                 } else {
-                    console.log(`  -> Übersprungen (finished=true)`);
+                    console.log(`  -> Übersprungen (shipped_ready=true)`);
                 }
             });
             activeJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
@@ -335,7 +335,7 @@
     async function getFinishedJobsFromCollection() {
         if (unsubscribeFinishedJobs) unsubscribeFinishedJobs();
         finishedJobs = [];
-        // Lade alle nicht-archivierten Jobs und filtere nach finished === true
+        // Lade alle nicht-archivierten Jobs und filtere nach shipped_ready === true
         const q = query(collection(db, "Jobs"), where("archiv", "==", false));
         unsubscribeFinishedJobs = onSnapshot(q, (querySnapshot) => {
             /** @type {Job[]} */
@@ -343,10 +343,10 @@
             querySnapshot.forEach((doc) => {
                 let ID = doc.id;
                 const jobData = /** @type {Job} */ ({ id: ID, ...doc.data() });
-                // Zeige nur Jobs, die explizit finished === true sind
-                if (jobData.finished === true) {
+                // Zeige nur Jobs, die explizit shipped_ready === true sind
+                if (jobData.shipped_ready === true) {
                     completedJobs.push(jobData);
-                    console.log(`Fertiger Job: ${jobData.jobname} (finished=${jobData.finished})`);
+                    console.log(`Fertiger Job: ${jobData.jobname} (shipped_ready=${jobData.shipped_ready})`);
                 }
             });
             completedJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
