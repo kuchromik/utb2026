@@ -1051,7 +1051,7 @@
         background-color: var(--color-white);
         cursor: pointer;
         transition: all var(--transition-fast);
-        min-width: 200px;
+        min-width: 100px;
     }
 
     :global(select:hover) {
