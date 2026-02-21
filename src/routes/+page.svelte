@@ -175,15 +175,27 @@
 
     /**
      * Repariert Jobs ohne customerID, indem versucht wird, den Kunden zu finden
-     * @returns {Promise<{fixed: number, notFound: string[]}>}
+     * @returns {Promise<{fixed: number, notFound: string[], total: number, byCategory: {active: number, finished: number, archive: number}}>}
      */
     async function fixMissingCustomerIds() {
-        const jobsWithoutCustomerId = jobs.filter(job => !job.customerId);
+        // Sammle alle Jobs aus allen Kategorien
+        const allJobs = [...jobs, ...finishedJobs, ...archivJobs];
+        const jobsWithoutCustomerId = allJobs.filter(job => !job.customerId);
+        
+        // Zähle Jobs ohne customerID pro Kategorie
+        const activeCount = jobs.filter(job => !job.customerId).length;
+        const finishedCount = finishedJobs.filter(job => !job.customerId).length;
+        const archiveCount = archivJobs.filter(job => !job.customerId).length;
         
         if (jobsWithoutCustomerId.length === 0) {
             alert('Alle Jobs haben bereits eine Kunden-ID!');
-            return { fixed: 0, notFound: [] };
+            return { fixed: 0, notFound: [], total: 0, byCategory: { active: 0, finished: 0, archive: 0 } };
         }
+
+        console.log(`Prüfe ${jobsWithoutCustomerId.length} Jobs ohne customerID:`);
+        console.log(`- Aktive: ${activeCount}`);
+        console.log(`- Fertige: ${finishedCount}`);
+        console.log(`- Archiv: ${archiveCount}`);
 
         let fixed = 0;
         const notFound = [];
@@ -216,14 +228,19 @@
             }
         }
 
-        return { fixed, notFound };
+        return { 
+            fixed, 
+            notFound, 
+            total: jobsWithoutCustomerId.length,
+            byCategory: { active: activeCount, finished: finishedCount, archive: archiveCount }
+        };
     }
 
     /**
      * Startet die Reparatur fehlender customerIDs und zeigt das Ergebnis an
      */
     async function repairMissingCustomerIds() {
-        if (!confirm('Möchten Sie versuchen, fehlende Kunden-IDs automatisch zuzuordnen?')) {
+        if (!confirm('Möchten Sie versuchen, fehlende Kunden-IDs automatisch zuzuordnen?\n\nEs werden alle Jobs geprüft (aktiv, fertig und archiviert).')) {
             return;
         }
 
@@ -231,6 +248,11 @@
             const result = await fixMissingCustomerIds();
             
             let message = `Reparatur abgeschlossen:\n\n`;
+            message += `Geprüfte Jobs ohne Kunden-ID:\n`;
+            message += `  • Aktive: ${result.byCategory.active}\n`;
+            message += `  • Fertige: ${result.byCategory.finished}\n`;
+            message += `  • Archiv: ${result.byCategory.archive}\n`;
+            message += `  Gesamt: ${result.total}\n\n`;
             message += `✓ ${result.fixed} Job(s) wurden erfolgreich zugeordnet\n`;
             
             if (result.notFound.length > 0) {
