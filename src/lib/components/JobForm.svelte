@@ -361,6 +361,30 @@
         cursor: not-allowed;
     }
 
+    select {
+        width: 100%;
+        padding: var(--spacing-sm) var(--spacing-md);
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-base);
+        transition: all var(--transition-fast);
+    }
+
+    select:hover:not(:disabled) {
+        border-color: var(--color-success);
+    }
+
+    select:focus {
+        outline: none;
+        border-color: var(--color-success);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    select:disabled {
+        background: var(--color-gray-100);
+        cursor: not-allowed;
+    }
+
     .broadField {
         min-width: 200px;
     }
