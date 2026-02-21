@@ -1,14 +1,16 @@
 <script>
     /** @typedef {import('$lib/types').Job} Job */
     /** @typedef {import('$lib/types').Customer} Customer */
+    /** @typedef {import('$lib/types').VatRate} VatRate */
     /** @typedef {import('$lib/types').JobSaveHandler} JobSaveHandler */
     /** @typedef {import('$lib/types').VoidHandler} VoidHandler */
     /** @typedef {import('$lib/types').CustomerLabelHandler} CustomerLabelHandler */
 
-    /** @type {{ job: Job, customers?: Customer[], onSave: JobSaveHandler, onCancel: VoidHandler, onNewCustomer: VoidHandler, onEditCustomer: CustomerLabelHandler }} */
+    /** @type {{ job: Job, customers?: Customer[], vatRates?: VatRate[], onSave: JobSaveHandler, onCancel: VoidHandler, onNewCustomer: VoidHandler, onEditCustomer: CustomerLabelHandler }} */
     let { 
         job,
         customers = [],
+        vatRates = [],
         onSave,
         onCancel,
         onNewCustomer,
@@ -21,6 +23,7 @@
     let details = $state(job.details);
     let amount = $state(job.amount);
     let producer = $state(job.producer);
+    let vatRate = $state(job.vatRate ?? 19);
     let error = $state('');
     let loading = $state(false);
 
@@ -59,6 +62,12 @@
             return false;
         }
         
+        const numericVatRate = Number(vatRate);
+        if (!Number.isFinite(numericVatRate) || numericVatRate < 0) {
+            error = 'Bitte gültigen Mehrwertsteuersatz auswählen';
+            return false;
+        }
+        
         return true;
     }
 
@@ -82,7 +91,8 @@
                 quantity: Number(quantity),
                 details: details.trim(),
                 amount: normalizeAmount(amount),
-                producer
+                producer,
+                vatRate: Number(vatRate)
             });
         } catch (err) {
             error = `Fehler beim Speichern: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`;
@@ -215,6 +225,16 @@
             <option value="pin">Pinguin</option>
             <option value="hee">Heenemann</option>
             <option value="son">Sonstige</option>
+        </select>
+    </div>
+
+    <div class="field">
+        <label class="field-label" for="edit-job-vat-rate">Mehrwertsteuer</label>
+        <select id="edit-job-vat-rate" bind:value={vatRate} disabled={loading}>
+            <option value="" disabled>MwSt.-Satz auswählen</option>
+            {#each vatRates as rate}
+                <option value={rate.rate}>{rate.label}</option>
+            {/each}
         </select>
     </div>
     

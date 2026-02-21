@@ -21,6 +21,7 @@
     /** @typedef {import('$lib/types').Job} Job */
     /** @typedef {import('$lib/types').ReadyType} ReadyType */
     /** @typedef {import('$lib/types').UnsubscribeFn} UnsubscribeFn */
+    /** @typedef {import('$lib/types').VatRate} VatRate */
 
     let loggedIn = $state(false);
     let showArchiv = $state(false);
@@ -33,6 +34,8 @@
     let finishedJobs = $state([]);
     /** @type {Job[]} */
     let archivJobs = $state([]);
+    /** @type {VatRate[]} */
+    let vatRates = $state([]);
     let user = $state('');
     
     const db = getFirestore(app);
@@ -46,6 +49,8 @@
     let unsubscribeFinishedJobs = null;
     /** @type {UnsubscribeFn | null} */
     let unsubscribeArchivJobs = null;
+    /** @type {UnsubscribeFn | null} */
+    let unsubscribeVatRates = null;
     
     // Modal states
     let showDeleteModal = $state(false);
@@ -229,6 +234,29 @@
             console.info(`Migrated ${updatedCount} jobs with finished field.`);
         }
     }
+
+    async function migrateJobsVatRate() {
+        const jobsCollection = collection(db, "Jobs");
+        const snapshot = await getDocs(query(jobsCollection));
+        const batch = writeBatch(db);
+        let updatedCount = 0;
+
+        snapshot.forEach((jobDoc) => {
+            const jobData = jobDoc.data();
+            // Wenn das vatRate-Feld nicht existiert, setze es auf den Standard-Wert 19
+            if (jobData.vatRate === undefined) {
+                batch.update(jobDoc.ref, {
+                    vatRate: 19
+                });
+                updatedCount += 1;
+            }
+        });
+
+        if (updatedCount > 0) {
+            await batch.commit();
+            console.info(`Migrated ${updatedCount} jobs with vatRate field (set to 19%).`);
+        }
+    }
     
     // Cleanup listeners on component destroy
     onDestroy(() => {
@@ -236,6 +264,7 @@
         if (unsubscribeJobs) unsubscribeJobs();
         if (unsubscribeFinishedJobs) unsubscribeFinishedJobs();
         if (unsubscribeArchivJobs) unsubscribeArchivJobs();
+        if (unsubscribeVatRates) unsubscribeVatRates();
     });
 
     /** @param {string} email @param {string} password */
@@ -247,6 +276,8 @@
         try {
             await migrateLegacyCustomers();
             await migrateJobsFinishedField();
+            await migrateJobsVatRate();
+            await ensureDefaultVatRates();
         } catch (migrationError) {
             console.error("Error migrating legacy data:", migrationError);
         }
@@ -254,6 +285,7 @@
         getJobsFromCollection();
         getFinishedJobsFromCollection();
         getCustomersFromCollection();
+        getVatRatesFromCollection();
     }
 
     async function handleLogOut() {
@@ -301,6 +333,58 @@
         }, (error) => {
             console.error("Error fetching customers:", error);
         });
+    }
+
+    async function getVatRatesFromCollection() {
+        if (unsubscribeVatRates) unsubscribeVatRates();
+        vatRates = [];
+        const q = query(collection(db, "VatRates"));
+        unsubscribeVatRates = onSnapshot(q, (querySnapshot) => {
+            vatRates = [];
+            querySnapshot.forEach((doc) => {
+                const vatRateData = /** @type {VatRate} */ ({ id: doc.id, ...doc.data() });
+                vatRates = [...vatRates, vatRateData];
+            });
+            // Sortiere nach Rate
+            vatRates.sort((a, b) => b.rate - a.rate);
+        }, (error) => {
+            console.error("Error fetching VAT rates:", error);
+        });
+    }
+
+    /**
+     * Stellt sicher, dass Standard-Mehrwertsteuersätze in der Datenbank existieren
+     */
+    async function ensureDefaultVatRates() {
+        const vatRatesCollection = collection(db, "VatRates");
+        const snapshot = await getDocs(vatRatesCollection);
+        
+        // Wenn bereits Mehrwertsteuersätze existieren, nichts tun
+        if (!snapshot.empty) {
+            console.log('VAT rates already exist in database');
+            return;
+        }
+
+        // Standard-Mehrwertsteuersätze anlegen
+        const defaultRates = [
+            { rate: 19, label: 'Standard (19%)', isDefault: true },
+            { rate: 7, label: 'Ermäßigt (7%)', isDefault: false },
+            { rate: 0, label: 'Steuerfrei (0%)', isDefault: false }
+        ];
+
+        const batch = writeBatch(db);
+        for (const rateData of defaultRates) {
+            const docRef = doc(vatRatesCollection);
+            batch.set(docRef, rateData);
+        }
+
+        try {
+            await batch.commit();
+            console.log('Default VAT rates created successfully');
+        } catch (error) {
+            console.error('Error creating default VAT rates:', error);
+            throw error;
+        }
     }
 
     async function getJobsFromCollection() {
@@ -553,6 +637,7 @@
             details: jobData.details,
             amount: normalizeAmount(jobData.amount),
             producer: jobData.producer,
+            vatRate: jobData.vatRate,
             paper_ready: false,
             plates_ready: false,
             print_ready: false,
@@ -719,6 +804,7 @@
                 details: job.details,
                 amount: normalizeAmount(job.amount),
                 producer: job.producer,
+                vatRate: job.vatRate ?? 19,
                 paper_ready: false,
                 plates_ready: false,
                 print_ready: false,
@@ -755,7 +841,8 @@
                 quantity: changedData.quantity,
                 details: changedData.details,
                 amount: normalizeAmount(changedData.amount),
-                producer: changedData.producer
+                producer: changedData.producer,
+                vatRate: changedData.vatRate
             });
             stopChangeMode();
         } catch (error) {
@@ -786,6 +873,7 @@
     {#if loggedIn && !showArchiv && !showFinished}
         <JobForm 
             {customers}
+            {vatRates}
             onSubmit={addNewJob}
             onNewCustomer={() => {
                 showNewCustomerModal = true;
@@ -826,6 +914,7 @@
                         <JobEditForm 
                             job={jobToEdit}
                             {customers}
+                            {vatRates}
                             onSave={saveChangedJob}
                             onCancel={stopChangeMode}
                             onNewCustomer={() => {

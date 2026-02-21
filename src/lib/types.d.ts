@@ -14,6 +14,13 @@ export type Customer = {
     address2?: string;
 };
 
+export type VatRate = {
+    id?: string;
+    rate: number;
+    label: string;
+    isDefault?: boolean;
+};
+
 export type JobFormData = {
     customerId: string;
     customer: string;
@@ -22,6 +29,7 @@ export type JobFormData = {
     details: string;
     amount: number;
     producer: string;
+    vatRate: number;
 };
 
 export type Job = JobFormData & {
