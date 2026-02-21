@@ -1,6 +1,6 @@
 <script>
-    /** @type {{ job: import('$lib/types').Job, onConfirm: (trackingNumber?: string) => void, onCancel: () => void }} */
-    let { job, onConfirm, onCancel } = $props();
+    /** @type {{ job: import('$lib/types').Job, onConfirm: (trackingNumber?: string) => void, onConfirmWithoutEmail: (trackingNumber?: string) => void, onCancel: () => void }} */
+    let { job, onConfirm, onConfirmWithoutEmail, onCancel } = $props();
 
     let trackingNumber = $state('');
 
@@ -10,6 +10,14 @@
             return;
         }
         onConfirm(job.toShip ? trackingNumber.trim() : undefined);
+    }
+
+    function handleConfirmWithoutEmail() {
+        if (job.toShip && !trackingNumber.trim()) {
+            alert('Bitte geben Sie eine Sendungsverfolgungsnummer ein.');
+            return;
+        }
+        onConfirmWithoutEmail(job.toShip ? trackingNumber.trim() : undefined);
     }
 </script>
 
@@ -58,6 +66,9 @@
         <div class="button-group">
             <button class="btn-cancel" onclick={onCancel}>
                 Abbrechen
+            </button>
+            <button class="btn-no-email" onclick={handleConfirmWithoutEmail}>
+                Ohne E-Mail abschließen
             </button>
             <button class="btn-confirm" onclick={handleConfirm}>
                 OK - E-Mail senden
@@ -193,6 +204,17 @@
 
     .btn-cancel:hover {
         background: var(--color-gray-400);
+    }
+
+    .btn-no-email {
+        background: var(--color-warning);
+        color: white;
+    }
+
+    .btn-no-email:hover {
+        background: #d97706;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
     }
 
     .btn-confirm {

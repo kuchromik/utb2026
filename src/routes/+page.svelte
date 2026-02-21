@@ -510,6 +510,37 @@
         jobForShippedConfirm = null;
     }
 
+    /** @param {string | undefined} trackingNumber */
+    async function confirmShippedWithoutEmail(trackingNumber) {
+        if (!jobForShippedConfirm) return;
+
+        try {
+            const jobRef = doc(db, "Jobs", jobForShippedConfirm.id);
+            
+            // Update Job in Firebase ohne E-Mail-Versand
+            /** @type {Record<string, any>} */
+            const updateData = {
+                shipped_ready: true,
+                finished: true
+            };
+            
+            if (trackingNumber) {
+                updateData.trackingNumber = trackingNumber;
+            }
+            
+            await updateDoc(jobRef, updateData);
+            
+            alert('Auftrag wurde abgeschlossen (ohne E-Mail-Versand).');
+        } catch (error) {
+            console.error('Fehler beim Abschließen:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            alert('Fehler beim Verarbeiten der Anfrage: ' + errorMessage);
+        } finally {
+            showShippedConfirmModal = false;
+            jobForShippedConfirm = null;
+        }
+    }
+
     /** @param {JobFormData} jobData */
     async function addNewJob(jobData) {
         const colRef = doc(collection(db, "Jobs"));
@@ -893,6 +924,7 @@
     <ShippedConfirmModal
         job={jobForShippedConfirm}
         onConfirm={confirmShippedAndSendEmail}
+        onConfirmWithoutEmail={confirmShippedWithoutEmail}
         onCancel={cancelShippedConfirm}
     />
 {/if}
