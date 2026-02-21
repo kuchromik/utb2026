@@ -1133,6 +1133,13 @@
         flex-wrap: wrap;
     }
 
+    .archive-selector select {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     .search-all-btn {
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         color: white;

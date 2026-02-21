@@ -201,15 +201,16 @@
             />
         </div>
 
-        <div class="field">
+        <div class="field field-details">
             <label class="field-label" for="job-details">Details</label>
             <input
                 id="job-details"
-                class="broadField"
+                class="broadField detailsField"
                 type="text"
                 placeholder="Details"
                 bind:value={details}
                 disabled={loading}
+                size="120"
             />
         </div>
 
@@ -321,6 +322,14 @@
 
     .field-customer {
         grid-column: span 1;
+    }
+
+    .field-details {
+        grid-column: span 3;
+    }
+
+    .detailsField {
+        width: 100%;
     }
 
     .customer-hint {
