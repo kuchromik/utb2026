@@ -298,7 +298,7 @@
 
     .newJob {
         display: grid;
-        grid-template-columns: 200px 1fr 100px 1fr 120px 200px auto auto auto;
+        grid-template-columns: 200px 1fr 100px 2fr 100px 160px 100px 130px 130px;
         gap: var(--spacing-md);
         align-items: end;
         background: var(--color-success-light);
@@ -397,6 +397,7 @@
     .btn-edit-customer {
         background: var(--color-info);
         color: white;
+        min-width: 160px;
     }
 
     .btn-edit-customer:hover:not(:disabled) {
