@@ -145,7 +145,18 @@
         let customer = customers.find(c => getCustomerLabel(c) === customerLabel);
         if (customer) return customer;
 
-        // Versuch 2: Flexibles Matching für alte Formate
+        // Versuch 2: Partial Match - Job hat "Firma – Name", Kunde hat nur Firma
+        // z.B. Job: "Jabitte!? GmbH – Lindner, Jeannette" matched mit Kunde: company="Jabitte!? GmbH"
+        customer = customers.find(c => {
+            const company = c.company?.trim();
+            if (company && customerLabel.startsWith(company + ' – ')) {
+                return true;
+            }
+            return false;
+        });
+        if (customer) return customer;
+
+        // Versuch 3: Flexibles Matching für alte Formate
         customer = customers.find(c => {
             const company = c.company?.trim() || '';
             const lastName = c.lastName?.trim() || '';
@@ -163,6 +174,8 @@
                 firstName && lastName ? `${lastName} ${firstName}` : '',
                 // "Nachname, Vorname"
                 firstName && lastName ? `${lastName}, ${firstName}` : '',
+                // Aktuelles Format "Firma – Nachname, Vorname"
+                company && lastName && firstName ? `${company} – ${lastName}, ${firstName}` : '',
                 // Nur Firma
                 company,
             ].filter(Boolean);
