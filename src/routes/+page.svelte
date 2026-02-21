@@ -361,7 +361,6 @@
         
         // Wenn bereits Mehrwertsteuersätze existieren, nichts tun
         if (!snapshot.empty) {
-            console.log('VAT rates already exist in database');
             return;
         }
 
@@ -380,7 +379,6 @@
 
         try {
             await batch.commit();
-            console.log('Default VAT rates created successfully');
         } catch (error) {
             console.error('Error creating default VAT rates:', error);
             throw error;
@@ -398,19 +396,13 @@
             querySnapshot.forEach((doc) => {
                 let ID = doc.id;
                 const jobData = /** @type {Job} */ ({ id: ID, ...doc.data() });
-                // Debug-Logging
-                console.log(`Job ${jobData.jobname}: shipped_ready=${jobData.shipped_ready}, archiv=${jobData.archiv}`);
                 // Zeige nur Jobs, die NICHT shipped_ready sind (shipped_ready muss explizit !== true sein)
                 if (jobData.shipped_ready !== true) {
                     activeJobs.push(jobData);
-                    console.log(`  -> Hinzugefügt zu aktiven Jobs`);
-                } else {
-                    console.log(`  -> Übersprungen (shipped_ready=true)`);
                 }
             });
             activeJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
             jobs = activeJobs;
-            console.log(`Aktive Jobs gesamt: ${jobs.length}`);
         }, (error) => {
             console.error("Error fetching jobs:", error);
         });
@@ -430,12 +422,10 @@
                 // Zeige nur Jobs, die explizit shipped_ready === true sind
                 if (jobData.shipped_ready === true) {
                     completedJobs.push(jobData);
-                    console.log(`Fertiger Job: ${jobData.jobname} (shipped_ready=${jobData.shipped_ready})`);
                 }
             });
             completedJobs.sort((a, b) => (b.jobstart) - (a.jobstart));
             finishedJobs = completedJobs;
-            console.log(`Fertige Jobs gesamt: ${finishedJobs.length}`);
         }, (error) => {
             console.error("Error fetching finished jobs:", error);
         });
@@ -500,23 +490,16 @@
             const customerId = jobForShippedConfirm.customerId;
             const jobCustomer = jobForShippedConfirm.customer;
             
-            console.log('Debugging E-Mail-Suche:');
-            console.log('- Job customerId:', customerId);
-            console.log('- Job customer:', jobCustomer);
-            console.log('- Verfügbare Kunden:', customers.length);
-            
             let customer = undefined;
             
             // Versuch 1: Suche per customerId
             if (customerId) {
                 customer = customers.find(c => c.id === customerId);
-                console.log('- Versuch 1 (per ID): ', customer ? 'GEFUNDEN' : 'NICHT GEFUNDEN');
             }
             
             // Versuch 2: Exakter Match mit aktuellem Label-Format
             if (!customer) {
                 customer = customers.find(c => getCustomerLabel(c) === jobCustomer);
-                console.log('- Versuch 2 (exaktes Label): ', customer ? 'GEFUNDEN' : 'NICHT GEFUNDEN');
             }
             
             // Versuch 3: Flexibles Matching für alte Formate
@@ -544,11 +527,7 @@
                     const match = variants.some(variant => variant === jobCustomer);
                     return match;
                 });
-                console.log('- Versuch 3 (flexibles Matching): ', customer ? 'GEFUNDEN' : 'NICHT GEFUNDEN');
             }
-
-            console.log('- Gefundener Kunde:', customer);
-            console.log('- Kunden E-Mail:', customer?.email);
 
             if (!customer) {
                 alert(`Warnung: Kunde nicht gefunden!\n\nGesucht wurde:\n- CustomerId: ${customerId || 'nicht vorhanden'}\n- Customer Label: ${jobCustomer}\n\nDer Status wurde aktualisiert, aber keine E-Mail wurde versendet.`);

@@ -37,14 +37,6 @@ export async function POST({ request }) {
             }, { status: 500 });
         }
 
-        console.log('SMTP-Konfiguration:', {
-            host: smtpHost,
-            port: smtpPort,
-            secure: smtpSecure,
-            user: smtpUser,
-            hasPassword: !!smtpPass
-        });
-
         const transporter = nodemailer.createTransport({
             host: smtpHost,
             port: smtpPort,

@@ -43,7 +43,12 @@
     <div class="details">
         <p title={job.details}>{job.details}</p>
     </div>
-    <div class="amount"><p><strong>{formatAmount(job.amount)}</strong> Euro</p></div>
+    <div class="amount">
+        <p>
+            <strong>{formatAmount(job.amount)}</strong> Euro
+            <span class="vat-rate">{job.vatRate ?? 19}%</span>
+        </p>
+    </div>
     <div class="producer">
         <p title={job.producer}>{job.producer}</p>
     </div>
@@ -263,5 +268,12 @@
 
     p {
         margin: 0;
+    }
+
+    .vat-rate {
+        margin-left: 8px;
+        color: var(--color-gray-600);
+        font-size: 0.9em;
+        font-weight: normal;
     }
 </style>

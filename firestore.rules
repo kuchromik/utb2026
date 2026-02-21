@@ -25,6 +25,15 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
     
+    // Rules for VatRates collection
+    match /VatRates/{rateId} {
+      // Only authenticated users can read VAT rates
+      allow read: if isAuthenticated();
+      
+      // Only authenticated users can create, update, delete VAT rates
+      allow write: if isAuthenticated();
+    }
+    
     // Deny all other access by default
     match /{document=**} {
       allow read, write: if false;
