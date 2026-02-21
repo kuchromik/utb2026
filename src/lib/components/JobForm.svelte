@@ -298,7 +298,7 @@
 
     .newJob {
         display: grid;
-        grid-template-columns: 200px 1fr 100px 2fr 100px 160px 100px 130px 130px;
+        grid-template-columns: 200px 1fr 100px 2fr 100px 160px 100px 100px 100px;
         gap: var(--spacing-md);
         align-items: end;
         background: var(--color-success-light);
