@@ -40,7 +40,12 @@
         <p title={job.customer}><strong>{job.customer}</strong></p>
     </div>
     <div class="jobname">
-        <p title={job.jobname}>{job.jobname}</p>
+        <p title={job.jobname}>
+            {#if !job.customerId}
+                <span class="missing-customer-warning" title="Keine Kunden-ID vorhanden! Dieser Job muss manuell einem Kunden zugeordnet werden.">❓</span>
+            {/if}
+            {job.jobname}
+        </p>
     </div>
     <div class="quantity"><p><strong>{job.quantity}</strong> Stck</p></div>
     <div class="details">
@@ -176,7 +181,12 @@
         <p title={job.customer}><strong>{job.customer}</strong></p>
     </div>
     <div class="jobname">
-        <p title={job.jobname}>{job.jobname}</p>
+        <p title={job.jobname}>
+            {#if !job.customerId}
+                <span class="missing-customer-warning" title="Keine Kunden-ID vorhanden! Dieser Job muss manuell einem Kunden zugeordnet werden.">❓</span>
+            {/if}
+            {job.jobname}
+        </p>
     </div>
     <div class="quantity"><p><strong>{job.quantity}</strong> Stck</p></div>
     <div class="details">
@@ -460,5 +470,13 @@
 
     p {
         margin: 0;
+    }
+
+    .missing-customer-warning {
+        color: #dc2626;
+        font-weight: bold;
+        margin-right: 4px;
+        cursor: help;
+        font-size: 1.1em;
     }
 </style>

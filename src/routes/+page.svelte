@@ -133,6 +133,119 @@
         return customers.find((customer) => getCustomerLabel(customer) === customerLabel);
     }
 
+    /**
+     * Versucht einen Kunden anhand verschiedener Matching-Strategien zu finden
+     * @param {string} customerLabel - Der customer String aus einem Job
+     * @returns {Customer | undefined}
+     */
+    function findCustomerByFlexibleMatch(customerLabel) {
+        if (!customerLabel) return undefined;
+
+        // Versuch 1: Exakter Match mit aktuellem Label-Format
+        let customer = customers.find(c => getCustomerLabel(c) === customerLabel);
+        if (customer) return customer;
+
+        // Versuch 2: Flexibles Matching für alte Formate
+        customer = customers.find(c => {
+            const company = c.company?.trim() || '';
+            const lastName = c.lastName?.trim() || '';
+            const firstName = c.firstName?.trim() || '';
+            
+            // Prüfe verschiedene Kombinationen
+            const variants = [
+                // "Firma Nachname Vorname"
+                company && lastName && firstName ? `${company} ${lastName} ${firstName}` : '',
+                // "Firma Vorname Nachname"
+                company && lastName && firstName ? `${company} ${firstName} ${lastName}` : '',
+                // "Vorname Nachname" (ohne Firma)
+                firstName && lastName ? `${firstName} ${lastName}` : '',
+                // "Nachname Vorname" (ohne Firma)
+                firstName && lastName ? `${lastName} ${firstName}` : '',
+                // "Nachname, Vorname"
+                firstName && lastName ? `${lastName}, ${firstName}` : '',
+                // Nur Firma
+                company,
+            ].filter(Boolean);
+            
+            return variants.some(variant => variant === customerLabel);
+        });
+
+        return customer;
+    }
+
+    /**
+     * Repariert Jobs ohne customerID, indem versucht wird, den Kunden zu finden
+     * @returns {Promise<{fixed: number, notFound: string[]}>}
+     */
+    async function fixMissingCustomerIds() {
+        const jobsWithoutCustomerId = jobs.filter(job => !job.customerId);
+        
+        if (jobsWithoutCustomerId.length === 0) {
+            alert('Alle Jobs haben bereits eine Kunden-ID!');
+            return { fixed: 0, notFound: [] };
+        }
+
+        let fixed = 0;
+        const notFound = [];
+        const batch = writeBatch(db);
+
+        for (const job of jobsWithoutCustomerId) {
+            const customer = findCustomerByFlexibleMatch(job.customer);
+            
+            if (customer && customer.id) {
+                const jobRef = doc(db, "Jobs", job.id);
+                batch.update(jobRef, {
+                    customerId: customer.id,
+                    customer: getCustomerLabel(customer) // Aktualisiere auch das Label auf das aktuelle Format
+                });
+                fixed++;
+                console.log(`✓ Job "${job.jobname}" zugeordnet zu Kunde "${getCustomerLabel(customer)}"`);
+            } else {
+                notFound.push(`${job.jobname} (Kunde: ${job.customer})`);
+                console.warn(`✗ Kein Kunde gefunden für Job "${job.jobname}" mit customer="${job.customer}"`);
+            }
+        }
+
+        if (fixed > 0) {
+            try {
+                await batch.commit();
+                console.log(`${fixed} Job(s) erfolgreich aktualisiert`);
+            } catch (error) {
+                console.error('Fehler beim Aktualisieren der Jobs:', error);
+                throw error;
+            }
+        }
+
+        return { fixed, notFound };
+    }
+
+    /**
+     * Startet die Reparatur fehlender customerIDs und zeigt das Ergebnis an
+     */
+    async function repairMissingCustomerIds() {
+        if (!confirm('Möchten Sie versuchen, fehlende Kunden-IDs automatisch zuzuordnen?')) {
+            return;
+        }
+
+        try {
+            const result = await fixMissingCustomerIds();
+            
+            let message = `Reparatur abgeschlossen:\n\n`;
+            message += `✓ ${result.fixed} Job(s) wurden erfolgreich zugeordnet\n`;
+            
+            if (result.notFound.length > 0) {
+                message += `\n✗ ${result.notFound.length} Job(s) konnten nicht zugeordnet werden:\n`;
+                message += result.notFound.map(job => `  - ${job}`).join('\n');
+                message += `\n\nBitte diese Jobs manuell bearbeiten und den korrekten Kunden zuordnen.`;
+            }
+            
+            alert(message);
+        } catch (error) {
+            console.error('Fehler bei der Reparatur:', error);
+            alert('Fehler bei der Reparatur: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
+        }
+    }
+
     /** @param {string} customerLabel */
     function openEditCustomerModal(customerLabel) {
         const selectedCustomer = getCustomerByLabel(customerLabel);
@@ -806,9 +919,14 @@
 
         <div class="section-header">
             <h2>{jobs.length} aktive Aufträge:</h2>
-            <button class="finished-btn" onclick={() => {showFinished = true;}}>
-                ✓ Fertige Aufträge anzeigen ({finishedJobs.length})
-            </button>
+            <div class="header-buttons">
+                <button class="repair-btn" onclick={repairMissingCustomerIds} title="Versucht automatisch, fehlende Kunden-IDs zuzuordnen">
+                    🔧 Kunden-IDs reparieren
+                </button>
+                <button class="finished-btn" onclick={() => {showFinished = true;}}>
+                    ✓ Fertige Aufträge anzeigen ({finishedJobs.length})
+                </button>
+            </div>
         </div>
         <ul>
             {#each jobs as job, index}
@@ -1103,6 +1221,21 @@
 
     .section-header h2 {
         margin: 0;
+    }
+
+    .header-buttons {
+        display: flex;
+        gap: var(--spacing-md);
+    }
+
+    .repair-btn {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        white-space: nowrap;
+    }
+
+    .repair-btn:hover {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
     }
 
     .finished-btn {
