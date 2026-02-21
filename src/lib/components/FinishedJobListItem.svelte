@@ -53,20 +53,12 @@
         <p title={job.producer}>{job.producer}</p>
     </div>
     
-    <div class="ready">
-        <label>
-            Rechnung?
-            <input 
-                type="checkbox" 
-                name="Rechnung?" 
-                checked={Boolean(job.invoice_ready)}
-                onchange={(event) => {
-                    const target = /** @type {HTMLInputElement} */ (event.currentTarget);
-                    onToggleReady("invoice", job.id, !target.checked);
-                }}
-            />
-        </label>
-    </div>
+    <button 
+        class="btn-invoice"
+        onclick={() => onToggleReady("invoice", job.id, Boolean(job.invoice_ready))}
+    >
+        {job.invoice_ready ? '✓ Rechnung' : 'Rechnung'}
+    </button>
     
     <button onclick={() => onArchive(job.id)}>
         Archiv
@@ -85,10 +77,9 @@
             150px          /* Jobname */
             90px           /* Menge */
             minmax(150px, 1fr)    /* Details */
-            130px          /* Betrag + MwSt. */
+            150px          /* Betrag + MwSt. */
             80px           /* Produzent */
-            60px           /* Rechnung Checkbox */
-            75px 75px 75px;  /* Buttons (3, aber nur 2 verwendet) */
+            88px 88px 88px;  /* 3 Buttons: Rechnung, Archiv, Löschen */
         gap: 8px;
         align-items: center;
         background: var(--color-white);
@@ -213,56 +204,38 @@
         text-overflow: ellipsis;
     }
 
-    .ready {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 60px;
-    }
-
-    .ready label {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        font-size: var(--font-size-xs);
-        color: var(--color-gray-600);
-        cursor: pointer;
-        white-space: nowrap;
-    }
-
-    .ready input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        cursor: pointer;
-        accent-color: var(--color-success);
-        flex-shrink: 0;
-    }
-
     button {
         padding: var(--spacing-xs) var(--spacing-sm);
         font-size: var(--font-size-xs);
         font-weight: 600;
         white-space: nowrap;
         height: 32px;
-        min-width: 80px;
     }
 
-    button:nth-of-type(1) {
+    .btn-invoice {
+        background: var(--color-warning);
+        color: white;
+    }
+
+    .btn-invoice:hover {
+        background: var(--color-warning-hover);
+    }
+
+    button:nth-of-type(2) {
         background: var(--color-info);
         color: white;
     }
 
-    button:nth-of-type(1):hover {
+    button:nth-of-type(2):hover {
         background: var(--color-info-hover);
     }
 
-    button:nth-of-type(2) {
+    button:nth-of-type(3) {
         background: var(--color-danger);
         color: white;
     }
 
-    button:nth-of-type(2):hover {
+    button:nth-of-type(3):hover {
         background: var(--color-danger-hover);
     }
 

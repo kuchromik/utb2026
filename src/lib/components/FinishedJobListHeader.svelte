@@ -9,7 +9,6 @@
     <div class="header-item">Det.</div>
     <div class="header-item">Betrag</div>
     <div class="header-item">Prod.</div>
-    <div class="header-item">Rechg.</div>
     <div class="header-item" style="grid-column: span 3; text-align: center;">Aktion</div>
 </div>
 
@@ -22,10 +21,9 @@
             150px          /* Jobname */
             90px           /* Menge */
             minmax(150px, 1fr)    /* Details */
-            100px          /* Betrag */
+            150px          /* Betrag */
             80px           /* Produzent */
-            60px           /* Rechnung Checkbox */
-            88px 88px 88px;  /* Buttons */
+            88px 88px 88px;  /* 3 Buttons */
         gap: 8px;
         align-items: center;
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);
@@ -46,17 +44,11 @@
         text-overflow: ellipsis;
     }
 
-    .header-item:nth-child(4),
-    .header-item:nth-child(6) {
+    .header-item:nth-child(4) {
         text-align: center;
     }
 
     .header-item:nth-child(6) {
         text-align: right;
-    }
-
-    .header-item:nth-child(8) {
-        text-align: center;
-        font-size: var(--font-size-xs);
     }
 </style>
