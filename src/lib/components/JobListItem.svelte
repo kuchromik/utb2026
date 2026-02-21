@@ -221,10 +221,10 @@
             150px          /* Jobname */
             90px           /* Menge */
             minmax(150px, 1fr)    /* Details */
-            100px          /* Betrag */
+            130px          /* Betrag + MwSt. */
             80px           /* Produzent */
             60px 60px 60px 60px 60px 60px  /* Checkboxen (6 statt 7) */
-            88px 88px 88px;  /* Buttons */
+            75px 75px 75px;  /* Buttons */
         gap: 8px;
         align-items: center;
         background: var(--color-white);
@@ -434,7 +434,7 @@
             150px          /* Jobname */
             90px           /* Menge */
             minmax(150px, 1fr)    /* Details */
-            100px          /* Betrag */
+            130px          /* Betrag + MwSt. */
             100px          /* Produzent */
             100px;         /* Button */
         gap: 8px;
