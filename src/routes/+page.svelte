@@ -635,6 +635,7 @@
 
         try {
             // Schritt 1: PDF erstellen und in Firebase speichern
+            console.log('Sende Anfrage an /api/create-invoice...');
             const invoiceResponse = await fetch('/api/create-invoice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -645,12 +646,18 @@
                 })
             });
 
+            console.log('Antwort Status:', invoiceResponse.status);
+
             if (!invoiceResponse.ok) {
                 const error = await invoiceResponse.json();
-                throw new Error(error.details || 'Fehler bei der Rechnungserstellung');
+                console.error('Server-Fehler bei Rechnungserstellung:', error);
+                const errorMsg = error.error || 'Fehler bei der Rechnungserstellung';
+                const errorDetails = error.details || 'Keine Details verfügbar';
+                throw new Error(`${errorMsg}\nDetails: ${errorDetails}`);
             }
 
             const invoiceData = await invoiceResponse.json();
+            console.log('Rechnung erstellt:', invoiceData);
 
             // Schritt 2: E-Mail mit PDF versenden
             const invoiceEmail = customerForInvoice.invoiceMail || customerForInvoice.email;
@@ -663,6 +670,7 @@
             const customerName = customerForInvoice.company || 
                 `${customerForInvoice.firstName || ''} ${customerForInvoice.lastName || ''}`.trim();
 
+            console.log('Sende Rechnung per E-Mail...');
             const emailResponse = await fetch('/api/send-invoice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -681,9 +689,14 @@
                 })
             });
 
+            console.log('E-Mail Antwort Status:', emailResponse.status);
+
             if (!emailResponse.ok) {
                 const error = await emailResponse.json();
-                throw new Error(error.details || 'Fehler beim E-Mail-Versand');
+                console.error('Server-Fehler beim E-Mail-Versand:', error);
+                const errorMsg = error.error || 'Fehler beim E-Mail-Versand';
+                const errorDetails = error.details || 'Keine Details verfügbar';
+                throw new Error(`${errorMsg}\nDetails: ${errorDetails}`);
             }
 
             // Schritt 3: Job als "invoice_ready" markieren
