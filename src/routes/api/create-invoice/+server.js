@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { env } from '$env/dynamic/private';
 
