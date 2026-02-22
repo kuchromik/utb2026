@@ -1,25 +1,55 @@
 import { json } from '@sveltejs/kit';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
 import { env } from '$env/dynamic/private';
 
-// Firebase Admin initialisieren (nur einmal)
-if (!getApps().length) {
-    initializeApp({
-        credential: cert({
-            projectId: env.VITE_FIREBASE_PROJECT_ID,
-            clientEmail: env.FIREBASE_CLIENT_EMAIL,
-            privateKey: env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-        }),
-        storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET
-    });
-}
+let db;
+let storage;
+let isFirebaseInitialized = false;
 
-const db = getFirestore();
-const storage = getStorage();
+/**
+ * Initialisiert Firebase Admin nur wenn nötig (nicht während des Builds)
+ */
+async function initializeFirebaseAdmin() {
+    if (isFirebaseInitialized) {
+        return true;
+    }
+
+    // Überspringe Initialisierung während des Build-Prozesses
+    if (!env.FIREBASE_PRIVATE_KEY || !env.FIREBASE_CLIENT_EMAIL) {
+        console.warn('Firebase Admin Credentials nicht verfügbar - überspringe Initialisierung');
+        return false;
+    }
+
+    try {
+        // Dynamischer Import nur zur Laufzeit
+        const { initializeApp, getApps, cert } = await import('firebase-admin/app');
+        const { getFirestore } = await import('firebase-admin/firestore');
+        const { getStorage } = await import('firebase-admin/storage');
+
+        if (getApps().length === 0) {
+            // Private Key richtig formatieren
+            const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+            
+            initializeApp({
+                credential: cert({
+                    projectId: env.VITE_FIREBASE_PROJECT_ID,
+                    clientEmail: env.FIREBASE_CLIENT_EMAIL,
+                    privateKey: privateKey
+                }),
+                storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET
+            });
+        }
+
+        db = getFirestore();
+        storage = getStorage();
+        isFirebaseInitialized = true;
+        return true;
+    } catch (error) {
+        console.error('Fehler bei Firebase Admin Initialisierung:', error);
+        return false;
+    }
+}
 
 /**
  * @param {{
@@ -28,6 +58,16 @@ const storage = getStorage();
  */
 export async function POST({ request }) {
     try {
+        // Initialisiere Firebase Admin erst zur Laufzeit
+        const initialized = await initializeFirebaseAdmin();
+
+        if (!initialized) {
+            return json({ 
+                error: 'Firebase Admin konnte nicht initialisiert werden',
+                details: 'Bitte überprüfen Sie die Umgebungsvariablen (FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL)' 
+            }, { status: 500 });
+        }
+
         const { job, customer, userId } = await request.json();
 
         if (!job || !customer || !userId) {
