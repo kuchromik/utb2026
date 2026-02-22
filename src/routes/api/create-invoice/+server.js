@@ -47,6 +47,7 @@ async function initializeFirebaseAdmin() {
             
             console.log('Initialisiere Firebase Admin...');
             console.log('Project ID:', env.VITE_FIREBASE_PROJECT_ID);
+            console.log('Storage Bucket:', env.VITE_FIREBASE_STORAGE_BUCKET);
             console.log('Client Email:', env.FIREBASE_CLIENT_EMAIL);
             console.log('Private Key starts with:', privateKey.substring(0, 50));
             
@@ -141,21 +142,32 @@ export async function POST({ request }) {
         const timestamp = Date.now();
         const storagePath = `invoices/${userId}/${timestamp}_${invoiceFileName}`;
         
-        // PDF in Firebase Storage hochladen
-        const bucket = storage.bucket();
-        const file = bucket.file(storagePath);
+        console.log('Lade PDF in Firebase Storage hoch...');
+        console.log('Storage Path:', storagePath);
         
-        await file.save(pdfBuffer, {
-            metadata: {
-                contentType: 'application/pdf',
+        // PDF in Firebase Storage hochladen
+        try {
+            const bucket = storage.bucket();
+            console.log('Bucket Name:', bucket.name);
+            const file = bucket.file(storagePath);
+            
+            await file.save(pdfBuffer, {
                 metadata: {
-                    invoiceNumber: currentInvoiceNumber.toString(),
-                    jobId: job.id,
-                    customerId: customer.id || '',
-                    createdAt: new Date().toISOString()
+                    contentType: 'application/pdf',
+                    metadata: {
+                        invoiceNumber: currentInvoiceNumber.toString(),
+                        jobId: job.id,
+                        customerId: customer.id || '',
+                        createdAt: new Date().toISOString()
+                    }
                 }
-            }
-        });
+            });
+            
+            console.log('PDF erfolgreich hochgeladen');
+        } catch (storageError) {
+            console.error('Fehler beim Storage Upload:', storageError);
+            throw new Error(`Firebase Storage Fehler: ${storageError instanceof Error ? storageError.message : 'Unbekannt'}. Stellen Sie sicher, dass Firebase Storage aktiviert ist und der Bucket existiert.`);
+        }
 
         // Download-URL generieren (signiert für 7 Tage)
         const [url] = await file.getSignedUrl({
