@@ -133,47 +133,15 @@ export async function POST({ request }) {
         const currentInvoiceNumber = companyData.currentInvoice || 1;
         
         // PDF erstellen
+        console.log('Erstelle PDF für Rechnung Nr.', currentInvoiceNumber);
         const pdfDoc = createInvoicePDF(job, customer, companyData, currentInvoiceNumber);
         const pdfBytes = pdfDoc.output('arraybuffer');
         const pdfBuffer = Buffer.from(pdfBytes);
         
         // Dateiname generieren
         const invoiceFileName = `Rechnung_${currentInvoiceNumber}_${job.jobname.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-        const timestamp = Date.now();
-        const storagePath = `invoices/${userId}/${timestamp}_${invoiceFileName}`;
         
-        console.log('Lade PDF in Firebase Storage hoch...');
-        console.log('Storage Path:', storagePath);
-        
-        // PDF in Firebase Storage hochladen
-        try {
-            const bucket = storage.bucket();
-            console.log('Bucket Name:', bucket.name);
-            const file = bucket.file(storagePath);
-            
-            await file.save(pdfBuffer, {
-                metadata: {
-                    contentType: 'application/pdf',
-                    metadata: {
-                        invoiceNumber: currentInvoiceNumber.toString(),
-                        jobId: job.id,
-                        customerId: customer.id || '',
-                        createdAt: new Date().toISOString()
-                    }
-                }
-            });
-            
-            console.log('PDF erfolgreich hochgeladen');
-        } catch (storageError) {
-            console.error('Fehler beim Storage Upload:', storageError);
-            throw new Error(`Firebase Storage Fehler: ${storageError instanceof Error ? storageError.message : 'Unbekannt'}. Stellen Sie sicher, dass Firebase Storage aktiviert ist und der Bucket existiert.`);
-        }
-
-        // Download-URL generieren (signiert für 7 Tage)
-        const [url] = await file.getSignedUrl({
-            action: 'read',
-            expires: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 Tage
-        });
+        console.log('PDF erstellt:', invoiceFileName);
 
         // Rechnungsnummer in Firebase erhöhen
         await companySnap.ref.update({
@@ -188,8 +156,6 @@ export async function POST({ request }) {
         return json({
             success: true,
             invoiceNumber: currentInvoiceNumber,
-            downloadUrl: url,
-            storagePath,
             pdfBase64,
             fileName: invoiceFileName
         });

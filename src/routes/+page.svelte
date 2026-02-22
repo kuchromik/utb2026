@@ -704,11 +704,10 @@
             await updateDoc(jobRef, {
                 invoice_ready: true,
                 invoiceNumber: invoiceData.invoiceNumber,
-                invoicePath: invoiceData.storagePath,
                 invoiceDate: Date.now() / 1000
             });
 
-            alert(`Rechnung Nr. ${invoiceData.invoiceNumber} wurde erfolgreich erstellt und an ${invoiceEmail} versendet!`);
+            alert(`Rechnung Nr. ${invoiceData.invoiceNumber} wurde erfolgreich erstellt und an ${invoiceEmail} versendet!\n\nEine Kopie wurde an invoicelog@online.de gesendet.`);
         } catch (error) {
             console.error('Fehler bei der Rechnungserstellung:', error);
             const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';

@@ -119,7 +119,7 @@ Chromik Offsetdruck
         const info = await transporter.sendMail({
             from: smtpFrom,
             to: customerEmail,
-            bcc: 'versandlog@online.de',
+            bcc: 'invoicelog@online.de',
             subject: subject,
             text: text,
             html: html,
