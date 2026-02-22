@@ -28,8 +28,27 @@ async function initializeFirebaseAdmin() {
         const { getStorage } = await import('firebase-admin/storage');
 
         if (getApps().length === 0) {
-            // Private Key richtig formatieren
-            const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+            // Private Key richtig formatieren - handhabe verschiedene Encoding-Szenarien
+            let privateKey = env.FIREBASE_PRIVATE_KEY;
+            
+            // Falls der Key als Base64 kodiert ist (FIREBASE_PRIVATE_KEY_BASE64)
+            if (env.FIREBASE_PRIVATE_KEY_BASE64) {
+                privateKey = Buffer.from(env.FIREBASE_PRIVATE_KEY_BASE64, 'base64').toString('utf8');
+            } 
+            // Falls der Key escaped newlines hat (\n als literal string)
+            else if (privateKey.includes('\\n')) {
+                privateKey = privateKey.replace(/\\n/g, '\n');
+            }
+            
+            // Validierung des Private Keys
+            if (!privateKey.includes('BEGIN PRIVATE KEY') || !privateKey.includes('END PRIVATE KEY')) {
+                throw new Error('Private Key hat ungültiges Format. Stellen Sie sicher, dass er BEGIN und END PRIVATE KEY enthält.');
+            }
+            
+            console.log('Initialisiere Firebase Admin...');
+            console.log('Project ID:', env.VITE_FIREBASE_PROJECT_ID);
+            console.log('Client Email:', env.FIREBASE_CLIENT_EMAIL);
+            console.log('Private Key starts with:', privateKey.substring(0, 50));
             
             initializeApp({
                 credential: cert({
@@ -44,9 +63,14 @@ async function initializeFirebaseAdmin() {
         db = getFirestore();
         storage = getStorage();
         isFirebaseInitialized = true;
+        console.log('Firebase Admin erfolgreich initialisiert');
         return true;
     } catch (error) {
         console.error('Fehler bei Firebase Admin Initialisierung:', error);
+        console.error('Error Details:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined
+        });
         return false;
     }
 }
