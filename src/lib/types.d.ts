@@ -4,10 +4,13 @@ export type Customer = {
     lastName: string;
     company?: string;
     address: string;
+    street?: string;
     zip: string;
     city: string;
+    country?: string;
     countryCode: string;
     email: string;
+    invoiceMail?: string;
     companyName?: string;
     companyName2?: string;
     address1?: string;
@@ -45,6 +48,9 @@ export type Job = JobFormData & {
     FixGuenstig?: boolean;
     toShip?: boolean;
     trackingNumber?: string;
+    invoiceNumber?: number;
+    invoicePath?: string;
+    invoiceDate?: number;
 };
 
 export type ReadyType = 'paper' | 'plates' | 'print' | 'shipped' | 'invoice' | 'toShip';

@@ -15,6 +15,7 @@
     import FinishedJobListItem from '$lib/components/FinishedJobListItem.svelte';
     import FinishedJobListHeader from '$lib/components/FinishedJobListHeader.svelte';
     import ShippedConfirmModal from '$lib/components/ShippedConfirmModal.svelte';
+    import InvoiceConfirmModal from '$lib/components/InvoiceConfirmModal.svelte';
 
     /** @typedef {import('$lib/types').Customer} Customer */
     /** @typedef {import('$lib/types').JobFormData} JobFormData */
@@ -58,12 +59,17 @@
     let showNewCustomerModal = $state(false);
     let showEditCustomerModal = $state(false);
     let showShippedConfirmModal = $state(false);
+    let showInvoiceModal = $state(false);
     let deleteJobId = $state('');
     let archiveJobId = $state('');
     /** @type {Customer | null} */
     let customerToEdit = $state(null);
     /** @type {Job | null} */
     let jobForShippedConfirm = $state(null);
+    /** @type {Job | null} */
+    let jobForInvoice = $state(null);
+    /** @type {Customer | null} */
+    let customerForInvoice = $state(null);
     
     // Edit mode
     /** @type {Job | null} */
@@ -443,6 +449,34 @@
             }
         }
 
+        // Spezialbehandlung für "invoice" - zeige Bestätigungsmodal und erstelle Rechnung
+        if (whatsIsReady === 'invoice') {
+            const job = finishedJobs.find(j => j.id === ID) || jobs.find(j => j.id === ID);
+            if (job) {
+                // Finde den Kunden
+                const customerId = job.customerId;
+                let customer = undefined;
+                
+                if (customerId) {
+                    customer = customers.find(c => c.id === customerId);
+                }
+                
+                if (!customer) {
+                    customer = customers.find(c => getCustomerLabel(c) === job.customer);
+                }
+
+                if (customer) {
+                    jobForInvoice = job;
+                    customerForInvoice = customer;
+                    showInvoiceModal = true;
+                    return;
+                } else {
+                    alert('Kunde konnte nicht gefunden werden. Bitte überprüfen Sie die Kundendaten.');
+                    return;
+                }
+            }
+        }
+
         const jobRef = doc(db, "Jobs", ID);
         /** @type {Record<ReadyType, string>} */
         const updateField = {
@@ -571,6 +605,89 @@
     function cancelShippedConfirm() {
         showShippedConfirmModal = false;
         jobForShippedConfirm = null;
+    }
+
+    async function createAndSendInvoice() {
+        if (!jobForInvoice || !customerForInvoice) return;
+
+        try {
+            // Schritt 1: PDF erstellen und in Firebase speichern
+            const invoiceResponse = await fetch('/api/create-invoice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    job: jobForInvoice,
+                    customer: customerForInvoice,
+                    userId: user
+                })
+            });
+
+            if (!invoiceResponse.ok) {
+                const error = await invoiceResponse.json();
+                throw new Error(error.details || 'Fehler bei der Rechnungserstellung');
+            }
+
+            const invoiceData = await invoiceResponse.json();
+
+            // Schritt 2: E-Mail mit PDF versenden
+            const invoiceEmail = customerForInvoice.invoiceMail || customerForInvoice.email;
+            
+            if (!invoiceEmail) {
+                alert('Keine E-Mail-Adresse für den Kunden gefunden!');
+                return;
+            }
+
+            const customerName = customerForInvoice.company || 
+                `${customerForInvoice.firstName || ''} ${customerForInvoice.lastName || ''}`.trim();
+
+            const emailResponse = await fetch('/api/send-invoice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customerEmail: invoiceEmail,
+                    customerName: customerName,
+                    jobname: jobForInvoice.jobname,
+                    invoiceNumber: invoiceData.invoiceNumber,
+                    amount: jobForInvoice.amount.toLocaleString('de-DE', { 
+                        minimumFractionDigits: 2, 
+                        maximumFractionDigits: 2 
+                    }),
+                    vatRate: jobForInvoice.vatRate || 19,
+                    pdfBase64: invoiceData.pdfBase64,
+                    fileName: invoiceData.fileName
+                })
+            });
+
+            if (!emailResponse.ok) {
+                const error = await emailResponse.json();
+                throw new Error(error.details || 'Fehler beim E-Mail-Versand');
+            }
+
+            // Schritt 3: Job als "invoice_ready" markieren
+            const jobRef = doc(db, "Jobs", jobForInvoice.id);
+            await updateDoc(jobRef, {
+                invoice_ready: true,
+                invoiceNumber: invoiceData.invoiceNumber,
+                invoicePath: invoiceData.storagePath,
+                invoiceDate: Date.now() / 1000
+            });
+
+            alert(`Rechnung Nr. ${invoiceData.invoiceNumber} wurde erfolgreich erstellt und an ${invoiceEmail} versendet!`);
+        } catch (error) {
+            console.error('Fehler bei der Rechnungserstellung:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            alert('Fehler bei der Rechnungserstellung: ' + errorMessage);
+        } finally {
+            showInvoiceModal = false;
+            jobForInvoice = null;
+            customerForInvoice = null;
+        }
+    }
+
+    function cancelInvoice() {
+        showInvoiceModal = false;
+        jobForInvoice = null;
+        customerForInvoice = null;
     }
 
     /** @param {string | undefined} trackingNumber */
@@ -996,6 +1113,14 @@
         onCancel={cancelShippedConfirm}
     />
 {/if}
+
+<InvoiceConfirmModal
+    bind:show={showInvoiceModal}
+    job={jobForInvoice ?? undefined}
+    customer={customerForInvoice ?? undefined}
+    onConfirm={createAndSendInvoice}
+    onCancel={cancelInvoice}
+/>
 
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
