@@ -451,29 +451,52 @@
 
         // Spezialbehandlung für "invoice" - zeige Bestätigungsmodal und erstelle Rechnung
         if (whatsIsReady === 'invoice') {
+            console.log('Invoice button clicked for job:', ID);
+            console.log('Current isReady state:', isReady);
+            
+            // Wenn bereits eine Rechnung erstellt wurde, zeige eine Info
+            if (isReady === true) {
+                console.log('Rechnung wurde bereits erstellt');
+                alert('Für diesen Auftrag wurde bereits eine Rechnung erstellt.');
+                return;
+            }
+            
             const job = finishedJobs.find(j => j.id === ID) || jobs.find(j => j.id === ID);
-            if (job) {
-                // Finde den Kunden
-                const customerId = job.customerId;
-                let customer = undefined;
-                
-                if (customerId) {
-                    customer = customers.find(c => c.id === customerId);
-                }
-                
-                if (!customer) {
-                    customer = customers.find(c => getCustomerLabel(c) === job.customer);
-                }
+            console.log('Job found:', job);
+            
+            if (!job) {
+                console.error('Job nicht gefunden in finishedJobs oder jobs');
+                alert('Auftrag konnte nicht gefunden werden.');
+                return;
+            }
+            
+            // Finde den Kunden
+            const customerId = job.customerId;
+            let customer = undefined;
+            
+            console.log('Suche Kunde mit customerId:', customerId);
+            
+            if (customerId) {
+                customer = customers.find(c => c.id === customerId);
+            }
+            
+            if (!customer) {
+                console.log('Kunde nicht über customerId gefunden, versuche über Label:', job.customer);
+                customer = customers.find(c => getCustomerLabel(c) === job.customer);
+            }
+            
+            console.log('Kunde gefunden:', customer);
 
-                if (customer) {
-                    jobForInvoice = job;
-                    customerForInvoice = customer;
-                    showInvoiceModal = true;
-                    return;
-                } else {
-                    alert('Kunde konnte nicht gefunden werden. Bitte überprüfen Sie die Kundendaten.');
-                    return;
-                }
+            if (customer) {
+                jobForInvoice = job;
+                customerForInvoice = customer;
+                console.log('Öffne Invoice Modal');
+                showInvoiceModal = true;
+                return;
+            } else {
+                console.error('Kunde konnte nicht zugeordnet werden');
+                alert('Kunde konnte nicht gefunden werden. Bitte überprüfen Sie die Kundendaten.');
+                return;
             }
         }
 
