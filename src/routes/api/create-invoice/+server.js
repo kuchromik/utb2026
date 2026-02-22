@@ -99,17 +99,35 @@ export async function POST({ request }) {
         }
 
         // Hole Firmendaten und Rechnungsnummer aus Firebase
-        const companyRef = db.collection('company').doc('companyData');
-        const companySnap = await companyRef.get();
+        // Versuche zuerst die spezifische Dokument-ID, dann das erste Dokument
+        let companySnap;
+        let companyData;
+        
+        // Versuche zuerst die bekannte ID aus Ihrer Datenbank
+        const knownCompanyId = 'dX9hqQJu8vcMeIVLTl4l';
+        companySnap = await db.collection('company').doc(knownCompanyId).get();
         
         if (!companySnap.exists) {
-            return json({ error: 'Firmendaten nicht gefunden' }, { status: 404 });
+            // Fallback: Hole das erste Dokument aus der Collection
+            console.log('Dokument mit ID nicht gefunden, suche erstes Dokument in company Collection...');
+            const companyQuery = await db.collection('company').limit(1).get();
+            
+            if (companyQuery.empty) {
+                return json({ error: 'Firmendaten nicht gefunden' }, { status: 404 });
+            }
+            
+            companySnap = companyQuery.docs[0];
         }
 
-        const companyData = companySnap.data();
+        companyData = companySnap.data();
         if (!companyData) {
             return json({ error: 'Firmendaten sind ungültig' }, { status: 500 });
         }
+        
+        console.log('Firmendaten geladen:', { 
+            name: companyData.name, 
+            currentInvoice: companyData.currentInvoice 
+        });
 
         const currentInvoiceNumber = companyData.currentInvoice || 1;
         
@@ -146,9 +164,11 @@ export async function POST({ request }) {
         });
 
         // Rechnungsnummer in Firebase erhöhen
-        await companyRef.update({
+        await companySnap.ref.update({
             currentInvoice: currentInvoiceNumber + 1
         });
+
+        console.log('Rechnungsnummer erhöht auf:', currentInvoiceNumber + 1);
 
         // PDF als Base64 für E-Mail-Anhang
         const pdfBase64 = pdfBuffer.toString('base64');
