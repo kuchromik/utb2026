@@ -189,6 +189,7 @@ function createInvoicePDF(job, customer, company, invoiceNumber) {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     const companyInfo = [
+        company.owner || '',
         company.address || '',
         `${company.zip || ''} ${company.city || ''}`,
         company.phone || '',
@@ -201,20 +202,10 @@ function createInvoicePDF(job, customer, company, invoiceNumber) {
         yPos += 5;
     });
 
-    // Rechnungsnummer und Datum
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Rechnung Nr. ${invoiceNumber}`, 20, yPos + 15);
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    const today = new Date().toLocaleDateString('de-DE');
-    doc.text(`Datum: ${today}`, 20, yPos + 25);
-
     // Kundenadresse
     yPos = yPos + 40;
     doc.setFont('helvetica', 'bold');
-    doc.text('Rechnungsempfänger:', 120, yPos);
+    doc.text('Rechnungsempfänger:', 20, yPos);
     doc.setFont('helvetica', 'normal');
     
     const customerName = customer.company || `${customer.firstName || ''} ${customer.lastName || ''}`.trim();
@@ -230,6 +221,16 @@ function createInvoicePDF(job, customer, company, invoiceNumber) {
         doc.text(line, 120, yPos);
         yPos += 5;
     });
+
+    // Rechnungsnummer und Datum
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Rechnung Nr. ${invoiceNumber}`, 20, yPos + 15);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const today = new Date().toLocaleDateString('de-DE');
+    doc.text(`Datum: ${today}`, 20, yPos + 25);
 
     // Auftragsdetails als Tabelle
     yPos = Math.max(yPos + 10, 120);
