@@ -227,12 +227,12 @@ function createInvoicePDF(job, customer, company, invoiceNumber) {
     // Rechnungsnummer und Datum
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Rechnung Nr. ${invoiceNumber}`, 20, 80);
+    doc.text(`Rechnung Nr. ${invoiceNumber}`, 20, 100);
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     const today = new Date().toLocaleDateString('de-DE');
-    doc.text(`Datum: ${today}`, 20, 85);
+    doc.text(`Rechnungs- und Lieferdatum: ${today}`, 20, 110);
 
     // Auftragsdetails als Tabelle
     yPos = Math.max(yPos + 10, 120);
