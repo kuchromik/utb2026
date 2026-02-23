@@ -130,7 +130,8 @@ export async function POST({ request }) {
             currentInvoice: companyData.currentInvoice 
         });
 
-        const currentInvoiceNumber = companyData.currentInvoice || 1;
+        // Sicherstellen, dass currentInvoiceNumber eine Zahl ist
+        const currentInvoiceNumber = parseInt(companyData.currentInvoice, 10) || 1;
         
         // PDF erstellen
         console.log('Erstelle PDF für Rechnung Nr.', currentInvoiceNumber);
@@ -143,12 +144,13 @@ export async function POST({ request }) {
         
         console.log('PDF erstellt:', invoiceFileName);
 
-        // Rechnungsnummer in Firebase erhöhen
+        // Rechnungsnummer in Firebase erhöhen (sicherstellen, dass es eine Zahl ist)
+        const nextInvoiceNumber = currentInvoiceNumber + 1;
         await companySnap.ref.update({
-            currentInvoice: currentInvoiceNumber + 1
+            currentInvoice: nextInvoiceNumber
         });
 
-        console.log('Rechnungsnummer erhöht auf:', currentInvoiceNumber + 1);
+        console.log('Rechnungsnummer erhöht von', currentInvoiceNumber, 'auf', nextInvoiceNumber);
 
         // PDF als Base64 für E-Mail-Anhang
         const pdfBase64 = pdfBuffer.toString('base64');
