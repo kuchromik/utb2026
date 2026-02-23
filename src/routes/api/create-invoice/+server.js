@@ -205,7 +205,7 @@ function createInvoicePDF(job, customer, company, invoiceNumber) {
     });
 
     // Kundenadresse
-    yPos = yPos + 40;
+    yPos = yPos + 5; // Abstand zum Firmenkopf
     doc.setFont('helvetica', 'bold');
     doc.text('Rechnungsempfänger:', 20, yPos);
     doc.setFont('helvetica', 'normal');
