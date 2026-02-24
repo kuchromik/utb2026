@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { env } from '$env/dynamic/private';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import QRCode from 'qrcode';
 
@@ -188,21 +188,58 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     
     // Logo laden und einfügen (oben rechts mit 20mm Abstand)
     try {
-        const logoPath = join(process.cwd(), 'static', 'logo.png');
-        const logoData = readFileSync(logoPath);
-        const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
+        let logoBase64;
         
-        // Logo-Dimensionen (351 x 51 Pixel = Verhältnis 6.88:1)
-        const logoWidth = 80; // mm
-        const logoHeight = logoWidth / 6.88; // ca. 11.63 mm (proportional)
+        // Versuche verschiedene Pfade für Development und Production
+        const possiblePaths = [
+            join(process.cwd(), 'static', 'logo.png'),
+            join(process.cwd(), '.svelte-kit', 'output', 'client', 'logo.png'),
+            join(process.cwd(), 'build', 'client', 'logo.png'),
+            '/var/task/static/logo.png' // Vercel Lambda path
+        ];
         
-        // Position: 10mm vom rechten und oberen Rand
-        // A4 Breite ist 210mm
-        const xPosition = 210 - 10 - logoWidth; // für rechtsbündig mit 10mm Abstand
-        console.log('Logo Position:', { x: xPosition, y: 10, width: logoWidth, height: logoHeight });
-        const yPosition = 10;
+        let logoLoaded = false;
         
-        doc.addImage(logoBase64, 'PNG', xPosition, yPosition, logoWidth, logoHeight);
+        // Versuche lokale Dateipfade
+        for (const logoPath of possiblePaths) {
+            if (existsSync(logoPath)) {
+                console.log('Logo gefunden:', logoPath);
+                const logoData = readFileSync(logoPath);
+                logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
+                logoLoaded = true;
+                break;
+            }
+        }
+        
+        // Falls lokal nicht gefunden, versuche von öffentlicher URL zu laden (Vercel Production)
+        if (!logoLoaded) {
+            console.log('Logo lokal nicht gefunden, versuche von URL zu laden...');
+            // Verwende VERCEL_URL oder PUBLIC_URL Umgebungsvariable, falls gesetzt
+            const baseUrl = env.VERCEL_URL ? `https://${env.VERCEL_URL}` : 'https://utb2026.vercel.app';
+            const logoUrl = `${baseUrl}/logo.png`;
+            console.log('Versuche Logo von:', logoUrl);
+            const response = await fetch(logoUrl);
+            if (response.ok) {
+                const buffer = await response.arrayBuffer();
+                logoBase64 = `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`;
+                logoLoaded = true;
+                console.log('Logo erfolgreich von URL geladen');
+            }
+        }
+        
+        if (logoLoaded) {
+            // Logo-Dimensionen (351 x 51 Pixel = Verhältnis 6.88:1)
+            const logoWidth = 80; // mm
+            const logoHeight = logoWidth / 6.88; // ca. 11.63 mm (proportional)
+            
+            // Position: 10mm vom rechten und oberen Rand
+            // A4 Breite ist 210mm
+            const xPosition = 210 - 10 - logoWidth; // für rechtsbündig mit 10mm Abstand
+            const yPosition = 10;
+            
+            doc.addImage(logoBase64, 'PNG', xPosition, yPosition, logoWidth, logoHeight);
+            console.log('Logo erfolgreich eingefügt');
+        }
     } catch (error) {
         console.warn('Logo konnte nicht geladen werden:', error);
         // Fahre ohne Logo fort
