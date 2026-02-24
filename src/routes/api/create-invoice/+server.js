@@ -2,6 +2,9 @@ import { json } from '@sveltejs/kit';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { env } from '$env/dynamic/private';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import QRCode from 'qrcode';
 
 let db;
 let storage;
@@ -135,7 +138,7 @@ export async function POST({ request }) {
         
         // PDF erstellen
         console.log('Erstelle PDF für Rechnung Nr.', currentInvoiceNumber);
-        const pdfDoc = createInvoicePDF(job, customer, companyData, currentInvoiceNumber);
+        const pdfDoc = await createInvoicePDF(job, customer, companyData, currentInvoiceNumber);
         const pdfBytes = pdfDoc.output('arraybuffer');
         const pdfBuffer = Buffer.from(pdfBytes);
         
@@ -178,16 +181,38 @@ export async function POST({ request }) {
  * @param {any} customer - Kundendaten  
  * @param {any} company - Firmendaten
  * @param {number} invoiceNumber - Rechnungsnummer
- * @returns {jsPDF} PDF-Dokument
+ * @returns {Promise<jsPDF>} PDF-Dokument
  */
-function createInvoicePDF(job, customer, company, invoiceNumber) {
+async function createInvoicePDF(job, customer, company, invoiceNumber) {
     const doc = new jsPDF();
     
+    // Logo laden und einfügen (oben rechts mit 20mm Abstand)
+    try {
+        const logoPath = join(process.cwd(), 'static', 'logo.png');
+        const logoData = readFileSync(logoPath);
+        const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
+        
+        // Logo-Dimensionen (351 x 51 Pixel = Verhältnis 6.88:1)
+        const logoWidth = 80; // mm
+        const logoHeight = logoWidth / 6.88; // ca. 11.63 mm (proportional)
+        
+        // Position: 20mm vom rechten und oberen Rand
+        // A4 Breite ist 210mm
+        const xPosition = 210 - 10 - logoWidth; // für rechtsbündig mit 10mm Abstand
+        const yPosition = 10;
+        
+        doc.addImage(logoBase64, 'PNG', xPosition, yPosition, logoWidth, logoHeight);
+    } catch (error) {
+        console.warn('Logo konnte nicht geladen werden:', error);
+        // Fahre ohne Logo fort
+    }
+    
     // Firmenkopf
+    /* ersetzt durch Logo
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     doc.text(company.name || 'Chromik Offsetdruck', 20, 20);
-    
+    */
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     const companyInfo = [
@@ -227,12 +252,12 @@ function createInvoicePDF(job, customer, company, invoiceNumber) {
     // Rechnungsnummer und Datum
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Rechnung Nr. ${invoiceNumber}`, 20, 100);
+    doc.text(`Rechnung Nr. ${invoiceNumber}`, 20, 110);
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     const today = new Date().toLocaleDateString('de-DE');
-    doc.text(`Rechnungs- und Lieferdatum: ${today}`, 20, 110);
+    doc.text(`Rechnungs- und Lieferdatum: ${today}`, 20, 115);
 
     // Auftragsdetails als Tabelle
     yPos = Math.max(yPos + 10, 120);
@@ -246,13 +271,13 @@ function createInvoicePDF(job, customer, company, invoiceNumber) {
     // @ts-ignore - autoTable wird durch Plugin hinzugefügt
     doc.autoTable({
         startY: yPos,
-        head: [['Position', 'Beschreibung', 'Menge', 'Einzelpreis', 'Gesamt']],
+        margin: { left: 20 },
+        head: [['Position', 'Beschreibung', 'Menge', 'Gesamt']],
         body: [
             [
                 '1',
                 job.jobname,
                 `${job.quantity} Stück`,
-                `${(netAmountOnly / job.quantity).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`,
                 `${netAmountOnly.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`
             ]
         ],
@@ -270,25 +295,32 @@ function createInvoicePDF(job, customer, company, invoiceNumber) {
         doc.text(`Details: ${job.details}`, 20, yPos);
         yPos += 7;
     }
+    /*
     doc.text(`Produzent: ${job.producer}`, 20, yPos);
     yPos += 10;
-
+    */
     // Summentabelle
     // @ts-ignore - autoTable wird durch Plugin hinzugefügt
     doc.autoTable({
         startY: yPos,
+        margin: { left: 20 },
         body: [
             ['Nettobetrag', `${netAmountOnly.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`],
             [`MwSt. ${vatRate}%`, `${vatAmount.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`],
             ['Gesamtbetrag', `${grossAmount.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`]
         ],
-        startX: 120,
         styles: { fontSize: 10 },
         columnStyles: {
             0: { fontStyle: 'bold', cellWidth: 40 },
             1: { halign: 'right', cellWidth: 30 }
         },
-        theme: 'plain'
+        theme: 'plain',
+        didParseCell: function(data) {
+            // Gesamtbetrag (letzte Zeile) fett drucken
+            if (data.row.index === 2) {
+                data.cell.styles.fontStyle = 'bold';
+            }
+        }
     });
 
     // Zahlungsinformationen
@@ -300,12 +332,18 @@ function createInvoicePDF(job, customer, company, invoiceNumber) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     
+    // Zahlungsfrist berechnen (heute + 14 Tage)
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 14);
+    const dueDateString = dueDate.toLocaleDateString('de-DE');
+    
     const paymentInfo = [
+        `Empfänger: ${company.owner || ''}`,
         `IBAN: ${company.iban || ''}`,
         `BIC: ${company.bic || ''}`,
         `Bank: ${company.bank || ''}`,
         '',
-        'Zahlbar innerhalb von 14 Tagen ohne Abzug.'
+        `Zahlbar bis zum ${dueDateString}.`
     ];
     
     yPos += 7;
@@ -313,6 +351,49 @@ function createInvoicePDF(job, customer, company, invoiceNumber) {
         doc.text(line, 20, yPos);
         yPos += 5;
     });
+
+    // QR-Code für SEPA-Überweisung generieren
+    try {
+        // EPC QR-Code Format für SEPA-Überweisungen
+        const epcData = [
+            'BCD',                                          // Service Tag
+            '002',                                          // Version
+            '1',                                            // Character Set (1 = UTF-8)
+            'SCT',                                          // Identification (SEPA Credit Transfer)
+            company.bic || '',                              // BIC
+            company.owner || '',                             // Empfängername
+            company.iban || '',                             // IBAN
+            `EUR${grossAmount.toFixed(2)}`,                 // Betrag mit Währung
+            '',                                             // Purpose (leer)
+            '',                                             // Structured Reference (leer)
+            `Rechnung ${invoiceNumber}`,                    // Unstructured Remittance (Verwendungszweck)
+            ''                                              // Beneficiary to Originator Information
+        ].join('\n');
+
+        // QR-Code als Data URL generieren
+        const qrDataUrl = await QRCode.toDataURL(epcData, {
+            errorCorrectionLevel: 'M',
+            type: 'image/png',
+            width: 200,
+            margin: 1
+        });
+
+        // QR-Code rechts neben den Zahlungsinformationen platzieren
+        const qrSize = 35; // mm
+        const qrX = 130; // rechts positioniert
+        const qrY = doc.lastAutoTable.finalY + 15; // gleiche Höhe wie "Zahlungsinformationen:"
+        
+        doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+        
+        // Text unter dem QR-Code
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text('QR-Code scannen', qrX + qrSize/2, qrY + qrSize + 4, { align: 'center' });
+        doc.text('für Überweisung', qrX + qrSize/2, qrY + qrSize + 8, { align: 'center' });
+        doc.setTextColor(0);
+    } catch (error) {
+        console.warn('QR-Code konnte nicht generiert werden:', error);
+    }
 
     // Fußzeile
     const pageHeight = doc.internal.pageSize.height;
