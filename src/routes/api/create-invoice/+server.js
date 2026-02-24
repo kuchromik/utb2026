@@ -189,34 +189,21 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     // Logo laden und einfügen (oben rechts mit 20mm Abstand)
     try {
         let logoBase64;
-        
-        // Versuche verschiedene Pfade für Development und Production
-        const possiblePaths = [
-            join(process.cwd(), 'static', 'logo.png'),
-            join(process.cwd(), '.svelte-kit', 'output', 'client', 'logo.png'),
-            join(process.cwd(), 'build', 'client', 'logo.png'),
-            '/var/task/static/logo.png' // Vercel Lambda path
-        ];
-        
         let logoLoaded = false;
         
-        // Versuche lokale Dateipfade
-        for (const logoPath of possiblePaths) {
-            if (existsSync(logoPath)) {
-                console.log('Logo gefunden:', logoPath);
-                const logoData = readFileSync(logoPath);
-                logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
-                logoLoaded = true;
-                break;
-            }
+        // Versuche zuerst lokale Datei (Development)
+        const localLogoPath = join(process.cwd(), 'static', 'logo.png');
+        if (existsSync(localLogoPath)) {
+            console.log('Logo lokal gefunden:', localLogoPath);
+            const logoData = readFileSync(localLogoPath);
+            logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`;
+            logoLoaded = true;
         }
         
-        // Falls lokal nicht gefunden, versuche von öffentlicher URL zu laden (Vercel Production)
+        // Falls lokal nicht gefunden, lade von öffentlicher URL (Production)
         if (!logoLoaded) {
-            console.log('Logo lokal nicht gefunden, versuche von URL zu laden...');
-            // Verwende VERCEL_URL oder PUBLIC_URL Umgebungsvariable, falls gesetzt
-            const baseUrl = env.VERCEL_URL ? `https://${env.VERCEL_URL}` : 'https://utb2026.vercel.app';
-            const logoUrl = `${baseUrl}/logo.png`;
+            console.log('Logo lokal nicht gefunden, lade von öffentlicher URL...');
+            const logoUrl = 'https://chromikoffsetdruck.de/logo.png';
             console.log('Versuche Logo von:', logoUrl);
             const response = await fetch(logoUrl);
             if (response.ok) {
@@ -224,6 +211,8 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
                 logoBase64 = `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`;
                 logoLoaded = true;
                 console.log('Logo erfolgreich von URL geladen');
+            } else {
+                console.warn('Logo konnte nicht von URL geladen werden. Status:', response.status);
             }
         }
         
@@ -321,7 +310,13 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
         ],
         theme: 'grid',
         headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-        styles: { fontSize: 10 }
+        styles: { fontSize: 10 },
+        columnStyles: {
+            0: { cellWidth: 15 }, // Position - schmaler
+            1: { cellWidth: 'auto' }, // Beschreibung - flexibel
+            2: { cellWidth: 25 }, // Menge
+            3: { cellWidth: 30, halign: 'right' } // Gesamt - rechtsbündig
+        }
     });
 
     // Details zu Auftrag
