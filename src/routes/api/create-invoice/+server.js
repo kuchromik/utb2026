@@ -196,9 +196,10 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
         const logoWidth = 80; // mm
         const logoHeight = logoWidth / 6.88; // ca. 11.63 mm (proportional)
         
-        // Position: 20mm vom rechten und oberen Rand
+        // Position: 10mm vom rechten und oberen Rand
         // A4 Breite ist 210mm
         const xPosition = 210 - 10 - logoWidth; // für rechtsbündig mit 10mm Abstand
+        console.log('Logo Position:', { x: xPosition, y: 10, width: logoWidth, height: logoHeight });
         const yPosition = 10;
         
         doc.addImage(logoBase64, 'PNG', xPosition, yPosition, logoWidth, logoHeight);
