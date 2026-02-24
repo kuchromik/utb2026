@@ -299,7 +299,7 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     doc.autoTable({
         startY: yPos,
         margin: { left: 20 },
-        head: [['Position', 'Beschreibung', 'Menge', 'Gesamt']],
+        head: [['Pos.', 'Beschreibung', 'Menge', 'Gesamt']],
         body: [
             [
                 '1',
