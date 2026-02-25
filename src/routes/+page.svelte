@@ -660,7 +660,10 @@
             console.log('Rechnung erstellt:', invoiceData);
 
             // Schritt 2: E-Mail mit PDF versenden
-            const invoiceEmail = customerForInvoice.invoiceMail || customerForInvoice.email;
+            // Priorisierung: job.billingEmail > customer.invoiceMail > customer.email
+            const invoiceEmail = jobForInvoice.billingEmail || 
+                customerForInvoice.invoiceMail || 
+                customerForInvoice.email;
             
             if (!invoiceEmail) {
                 alert('Keine E-Mail-Adresse für den Kunden gefunden!');

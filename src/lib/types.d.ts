@@ -51,6 +51,14 @@ export type Job = JobFormData & {
     invoiceNumber?: number;
     invoicePath?: string;
     invoiceDate?: number;
+    billingEmail?: string;
+    billingAddress?: {
+        firma?: string;
+        strasse?: string;
+        plz?: string;
+        ort?: string;
+        land?: string;
+    };
 };
 
 export type ReadyType = 'paper' | 'plates' | 'print' | 'shipped' | 'invoice' | 'toShip';

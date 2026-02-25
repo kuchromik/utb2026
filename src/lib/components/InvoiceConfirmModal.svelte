@@ -12,9 +12,9 @@
     } = $props();
 
     function getInvoiceEmail() {
-        if (!customer) return '';
-        // Priorisiere invoiceMail, sonst normale E-Mail
-        return customer.invoiceMail || customer.email || '';
+        if (!customer || !job) return '';
+        // Priorisierung: job.billingEmail > customer.invoiceMail > customer.email
+        return job.billingEmail || customer.invoiceMail || customer.email || '';
     }
 
     function getCustomerName() {
@@ -25,6 +25,31 @@
         
         if (company) return company;
         return `${firstName} ${lastName}`.trim();
+    }
+
+    function getBillingAddress() {
+        if (!job || !job.billingAddress) return null;
+        
+        const addr = job.billingAddress;
+        
+        return [
+            addr.firma || '',
+            addr.strasse || '',
+            `${addr.plz || ''} ${addr.ort || ''}`.trim(),
+            addr.land || ''
+        ].filter(Boolean).join(', ');
+    }
+
+    function getStandardAddress() {
+        if (!customer) return '';
+        
+        const name = getCustomerName();
+        return [
+            name,
+            customer.street || customer.address || '',
+            `${customer.zip || ''} ${customer.city || ''}`.trim(),
+            customer.country || ''
+        ].filter(Boolean).join(', ');
     }
 </script>
 
@@ -48,6 +73,20 @@
                         <strong>Kunde:</strong>
                         <span>{getCustomerName()}</span>
                     </div>
+                    
+                    {#if getBillingAddress()}
+                        <div class="detail-row billing-highlight">
+                            <strong>📍 Rechnungsadresse:</strong>
+                            <span>{getBillingAddress()}</span>
+                        </div>
+                        <p class="info-note warning">⚠️ Abweichende Rechnungsadresse wird verwendet</p>
+                    {:else}
+                        <div class="detail-row">
+                            <strong>Adresse:</strong>
+                            <span>{getStandardAddress()}</span>
+                        </div>
+                    {/if}
+                    
                     <div class="detail-row">
                         <strong>Betrag:</strong>
                         <span>{job.amount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € (inkl. {job.vatRate ?? 19}% MwSt.)</span>
@@ -57,7 +96,9 @@
                         <span class="email">{getInvoiceEmail()}</span>
                     </div>
                     
-                    {#if customer.invoiceMail}
+                    {#if job.billingEmail}
+                        <p class="info-note warning">⚠️ Rechnung wird an abweichende E-Mail-Adresse gesendet</p>
+                    {:else if customer.invoiceMail}
                         <p class="info-note">✓ Rechnung wird an separate Rechnungsadresse gesendet</p>
                     {:else}
                         <p class="info-note">ℹ️ Rechnung wird an Standard-E-Mail gesendet</p>
@@ -132,6 +173,13 @@
         border-bottom: none;
     }
 
+    .billing-highlight {
+        background: var(--color-warning-light);
+        margin: var(--spacing-sm) calc(-1 * var(--spacing-md));
+        padding: var(--spacing-sm) var(--spacing-md);
+        border-left: 4px solid var(--color-warning);
+    }
+
     .email-row {
         margin-top: var(--spacing-sm);
         padding-top: var(--spacing-md);
@@ -152,6 +200,12 @@
         border-radius: var(--radius-sm);
         font-size: var(--font-size-sm);
         color: var(--color-gray-700);
+    }
+
+    .info-note.warning {
+        background: var(--color-warning-light);
+        border-left-color: var(--color-warning);
+        font-weight: 600;
     }
 
     .confirmation-question {

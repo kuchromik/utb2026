@@ -262,13 +262,28 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     doc.text('Rechnungsempfänger:', 20, yPos);
     doc.setFont('helvetica', 'normal');
     
-    const customerName = customer.company || `${customer.firstName || ''} ${customer.lastName || ''}`.trim();
-    const customerAddress = [
-        customerName,
-        customer.street || customer.address || '',
-        `${customer.zip || ''} ${customer.city || ''}`,
-        customer.country || ''
-    ].filter(Boolean);
+    // Prüfe ob Job eine abweichende Rechnungsadresse hat
+    let customerName, customerAddress;
+    
+    if (job.billingAddress) {
+        // Verwende die job-spezifische Rechnungsadresse
+        customerName = job.billingAddress.firma || '';
+        customerAddress = [
+            customerName,
+            job.billingAddress.strasse || '',
+            `${job.billingAddress.plz || ''} ${job.billingAddress.ort || ''}`,
+            job.billingAddress.land || ''
+        ].filter(Boolean);
+    } else {
+        // Verwende die Standard-Kundenadresse
+        customerName = customer.company || `${customer.firstName || ''} ${customer.lastName || ''}`.trim();
+        customerAddress = [
+            customerName,
+            customer.street || customer.address || '',
+            `${customer.zip || ''} ${customer.city || ''}`,
+            customer.country || ''
+        ].filter(Boolean);
+    }
     
     yPos += 7;
     customerAddress.forEach(/** @param {string} line */ (line) => {
