@@ -1,8 +1,12 @@
 <script>
+    import { getFirestore, doc, getDoc } from 'firebase/firestore';
+    import { app } from '$lib/FireBase.js';
+    
     /** @typedef {import('$lib/types').Job} Job */
     /** @typedef {import('$lib/types').JobToggleReadyHandler} JobToggleReadyHandler */
     /** @typedef {import('$lib/types').JobEditHandler} JobEditHandler */
     /** @typedef {import('$lib/types').JobIdHandler} JobIdHandler */
+    /** @typedef {import('$lib/types').ShipmentAddress} ShipmentAddress */
 
     /** @type {{ job: Job, index: number, onToggleReady: JobToggleReadyHandler, onArchive: JobIdHandler, onDelete: JobIdHandler }} */
     let { 
@@ -12,6 +16,12 @@
         onArchive,
         onDelete
     } = $props();
+
+    const db = getFirestore(app);
+    
+    /** @type {ShipmentAddress | null} */
+    let shipmentAddress = $state(null);
+    let shipmentAddressLoading = $state(false);
 
     /** @param {number | string} value */
     function formatAmount(value) {
@@ -25,6 +35,50 @@
             maximumFractionDigits: 2
         });
     }
+
+    /**
+     * Lädt die Lieferadresse aus Firestore
+     */
+    async function loadShipmentAddress() {
+        if (!job.shipmentAddressId || shipmentAddressLoading) return;
+        
+        shipmentAddressLoading = true;
+        try {
+            const addressRef = doc(db, 'shipmentAddresses', job.shipmentAddressId);
+            const addressSnap = await getDoc(addressRef);
+            
+            if (addressSnap.exists()) {
+                shipmentAddress = /** @type {ShipmentAddress} */ ({ id: addressSnap.id, ...addressSnap.data() });
+            }
+        } catch (error) {
+            console.error('Fehler beim Laden der Lieferadresse:', error);
+        } finally {
+            shipmentAddressLoading = false;
+        }
+    }
+
+    /**
+     * Formatiert die Lieferadresse für den Tooltip
+     */
+    function formatShipmentAddress() {
+        if (!shipmentAddress) return '';
+        
+        const parts = [];
+        if (shipmentAddress.name) parts.push(shipmentAddress.name);
+        if (shipmentAddress.street) parts.push(shipmentAddress.street);
+        if (shipmentAddress.zip || shipmentAddress.city) {
+            parts.push(`${shipmentAddress.zip || ''} ${shipmentAddress.city || ''}`.trim());
+        }
+        
+        return parts.join('\n');
+    }
+
+    // Lade Lieferadresse wenn shipmentAddressId vorhanden
+    $effect(() => {
+        if (job.shipmentAddressId) {
+            loadShipmentAddress();
+        }
+    });
 </script>
 
 <div class="finished-joblist {index % 2 === 0 ? 'secondRow' : ''} {job.FixGuenstig ? 'fixguenstig' : ''}">
@@ -37,7 +91,16 @@
         <p title={job.customer}><strong>{job.customer}</strong></p>
     </div>
     <div class="jobname">
-        <p title={job.jobname}>{job.jobname}</p>
+        <p title={job.jobname}>
+            {job.jobname}
+            {#if job.shipmentAddressId}
+                <span 
+                    class="shipment-indicator" 
+                    title={shipmentAddress ? `Abweichende Lieferadresse:\n${formatShipmentAddress()}` : 'Abweichende Lieferadresse (wird geladen...)'}>
+                    📦
+                </span>
+            {/if}
+        </p>
     </div>
     <div class="quantity"><p><strong>{job.quantity}</strong> Stck</p></div>
     <div class="details">
@@ -248,5 +311,17 @@
         color: var(--color-gray-600);
         font-size: 0.9em;
         font-weight: normal;
+    }
+
+    .shipment-indicator {
+        margin-left: 6px;
+        cursor: help;
+        font-size: 1.1em;
+        display: inline-block;
+        transition: transform 0.2s ease;
+    }
+
+    .shipment-indicator:hover {
+        transform: scale(1.2);
     }
 </style>

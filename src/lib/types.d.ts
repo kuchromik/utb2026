@@ -17,6 +17,16 @@ export type Customer = {
     address2?: string;
 };
 
+export type ShipmentAddress = {
+    id?: string;
+    name?: string;
+    street?: string;
+    zip?: string;
+    city?: string;
+    customerId?: string;
+    createdAt?: number;
+};
+
 export type VatRate = {
     id?: string;
     rate: number;
@@ -59,6 +69,7 @@ export type Job = JobFormData & {
         ort?: string;
         land?: string;
     };
+    shipmentAddressId?: string;
 };
 
 export type ReadyType = 'paper' | 'plates' | 'print' | 'shipped' | 'invoice' | 'toShip';

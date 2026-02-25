@@ -13,9 +13,8 @@
     <div class="header-item">Plat.</div>
     <div class="header-item">Druck</div>
     <div class="header-item">Klar?</div>
-    <div class="header-item">Rechg.</div>
     <div class="header-item">Vers.</div>
-    <div class="header-item" style="grid-column: span 3; text-align: center;">Aktion</div>
+    <div class="header-item" style="grid-column: span 2; text-align: center;">Aktion</div>
 </div>
 
 <style>
@@ -29,8 +28,8 @@
             minmax(150px, 1fr)    /* Details */
             100px          /* Betrag */
             80px           /* Produzent */
-            60px 60px 60px 60px 60px 60px  /* Checkboxen */
-            88px 88px 88px;  /* Buttons */
+            60px 60px 60px 60px 60px  /* Checkboxen (5: Papier, Platten, Druck, Klar, Versand) */
+            90px 90px;  /* Buttons (2: Bearbeiten, Löschen) */
         gap: 8px;
         align-items: center;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

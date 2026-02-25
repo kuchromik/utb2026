@@ -1,8 +1,12 @@
 <script>
+    import { getFirestore, doc, getDoc } from 'firebase/firestore';
+    import { app } from '$lib/FireBase.js';
+    
     /** @typedef {import('$lib/types').Job} Job */
     /** @typedef {import('$lib/types').JobToggleReadyHandler} JobToggleReadyHandler */
     /** @typedef {import('$lib/types').JobEditHandler} JobEditHandler */
     /** @typedef {import('$lib/types').JobIdHandler} JobIdHandler */
+    /** @typedef {import('$lib/types').ShipmentAddress} ShipmentAddress */
 
     /** @type {{ job: Job, index: number, onToggleReady: JobToggleReadyHandler, onEdit: JobEditHandler, onArchive: JobIdHandler, onDelete: JobIdHandler, showReadyChecks?: boolean }} */
     let { 
@@ -14,6 +18,12 @@
         onDelete,
         showReadyChecks = true
     } = $props();
+
+    const db = getFirestore(app);
+    
+    /** @type {ShipmentAddress | null} */
+    let shipmentAddress = $state(null);
+    let shipmentAddressLoading = $state(false);
 
     /** @param {number | string} value */
     function formatAmount(value) {
@@ -27,6 +37,50 @@
             maximumFractionDigits: 2
         });
     }
+
+    /**
+     * Lädt die Lieferadresse aus Firestore
+     */
+    async function loadShipmentAddress() {
+        if (!job.shipmentAddressId || shipmentAddressLoading) return;
+        
+        shipmentAddressLoading = true;
+        try {
+            const addressRef = doc(db, 'shipmentAddresses', job.shipmentAddressId);
+            const addressSnap = await getDoc(addressRef);
+            
+            if (addressSnap.exists()) {
+                shipmentAddress = /** @type {ShipmentAddress} */ ({ id: addressSnap.id, ...addressSnap.data() });
+            }
+        } catch (error) {
+            console.error('Fehler beim Laden der Lieferadresse:', error);
+        } finally {
+            shipmentAddressLoading = false;
+        }
+    }
+
+    /**
+     * Formatiert die Lieferadresse für den Tooltip
+     */
+    function formatShipmentAddress() {
+        if (!shipmentAddress) return '';
+        
+        const parts = [];
+        if (shipmentAddress.name) parts.push(shipmentAddress.name);
+        if (shipmentAddress.street) parts.push(shipmentAddress.street);
+        if (shipmentAddress.zip || shipmentAddress.city) {
+            parts.push(`${shipmentAddress.zip || ''} ${shipmentAddress.city || ''}`.trim());
+        }
+        
+        return parts.join('\n');
+    }
+
+    // Lade Lieferadresse wenn shipmentAddressId vorhanden
+    $effect(() => {
+        if (job.shipmentAddressId) {
+            loadShipmentAddress();
+        }
+    });
 </script>
 
 {#if showReadyChecks}
@@ -45,6 +99,13 @@
                 <span class="missing-customer-warning" title="Keine Kunden-ID vorhanden! Dieser Job muss manuell einem Kunden zugeordnet werden.">❓</span>
             {/if}
             {job.jobname}
+            {#if job.shipmentAddressId}
+                <span 
+                    class="shipment-indicator" 
+                    title={shipmentAddress ? `Abweichende Lieferadresse:\n${formatShipmentAddress()}` : 'Abweichende Lieferadresse (wird geladen...)'}>
+                    📦
+                </span>
+            {/if}
         </p>
     </div>
     <div class="quantity"><p><strong>{job.quantity}</strong> Stck</p></div>
@@ -136,21 +197,6 @@
         
         <div class="ready">
             <label>
-                Rechnung?
-                <input 
-                    type="checkbox" 
-                    name="Rechnung?" 
-                    checked={Boolean(job.invoice_ready)}
-                    onchange={(event) => {
-                        const target = /** @type {HTMLInputElement} */ (event.currentTarget);
-                        onToggleReady("invoice", job.id, !target.checked);
-                    }}
-                />
-            </label>
-        </div>
-        
-        <div class="ready">
-            <label>
                 Versand?
                 <input 
                     type="checkbox" 
@@ -166,9 +212,6 @@
         
         <button onclick={() => onEdit(job, index)}>
             Bearbeiten
-        </button>
-        <button onclick={() => onArchive(job.id)}>
-            Archiv
         </button>
         <button onclick={() => onDelete(job.id)}>
             Löschen
@@ -191,6 +234,13 @@
                 <span class="missing-customer-warning" title="Keine Kunden-ID vorhanden! Dieser Job muss manuell einem Kunden zugeordnet werden.">❓</span>
             {/if}
             {job.jobname}
+            {#if job.shipmentAddressId}
+                <span 
+                    class="shipment-indicator" 
+                    title={shipmentAddress ? `Abweichende Lieferadresse:\n${formatShipmentAddress()}` : 'Abweichende Lieferadresse (wird geladen...)'}>
+                    📦
+                </span>
+            {/if}
         </p>
     </div>
     <div class="quantity"><p><strong>{job.quantity}</strong> Stck</p></div>
@@ -223,8 +273,8 @@
             minmax(150px, 1fr)    /* Details */
             130px          /* Betrag + MwSt. */
             80px           /* Produzent */
-            60px 60px 60px 60px 60px 60px  /* Checkboxen (6 statt 7) */
-            75px 75px 75px;  /* Buttons */
+            60px 60px 60px 60px 60px  /* Checkboxen (5: Papier, Platten, Druck, Klar, Versand) */
+            90px 90px;  /* Buttons (2: Bearbeiten, Löschen) */
         gap: 8px;
         align-items: center;
         background: var(--color-white);
@@ -396,20 +446,11 @@
     }
 
     button:nth-of-type(2) {
-        background: var(--color-info);
-        color: white;
-    }
-
-    button:nth-of-type(2):hover {
-        background: var(--color-info-hover);
-    }
-
-    button:nth-of-type(3) {
         background: var(--color-danger);
         color: white;
     }
 
-    button:nth-of-type(3):hover {
+    button:nth-of-type(2):hover {
         background: var(--color-danger-hover);
     }
 
@@ -495,5 +536,17 @@
         margin-right: 4px;
         cursor: help;
         font-size: 1.1em;
+    }
+
+    .shipment-indicator {
+        margin-left: 6px;
+        cursor: help;
+        font-size: 1.1em;
+        display: inline-block;
+        transition: transform 0.2s ease;
+    }
+
+    .shipment-indicator:hover {
+        transform: scale(1.2);
     }
 </style>
