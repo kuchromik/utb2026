@@ -79,7 +79,7 @@
      * Formatiert die Rechnungsadresse aus den Jobdaten für den Tooltip
      */
     function formatBillingAddress() {
-        const b = job.billingAdress;
+        const b = job.billingAddress;
         if (!b) return '';
 
         const parts = [];
@@ -124,7 +124,7 @@
                     📦
                 </span>
             {/if}
-            {#if job.billingAdress}
+            {#if job.billingAddress}
                 <span
                     class="billing-indicator"
                     title={`Abweichende Rechnungsadresse:\n${formatBillingAddress()}`}>
