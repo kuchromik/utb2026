@@ -98,7 +98,7 @@
             {#if !job.customerId}
                 <span class="missing-customer-warning" title="Keine Kunden-ID vorhanden! Dieser Job muss manuell einem Kunden zugeordnet werden.">❓</span>
             {/if}
-            {job.jobname}
+            <span class="jobname-text">{job.jobname}</span>
             {#if job.shipmentAddressId}
                 <span 
                     class="shipment-indicator" 
@@ -233,7 +233,7 @@
             {#if !job.customerId}
                 <span class="missing-customer-warning" title="Keine Kunden-ID vorhanden! Dieser Job muss manuell einem Kunden zugeordnet werden.">❓</span>
             {/if}
-            {job.jobname}
+            <span class="jobname-text">{job.jobname}</span>
             {#if job.shipmentAddressId}
                 <span 
                     class="shipment-indicator" 
@@ -342,9 +342,17 @@
     }
 
     .jobname p {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .jobname-text {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        flex: 1;
+        min-width: 0;
     }
 
     .quantity {
