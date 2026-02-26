@@ -268,13 +268,13 @@
         grid-template-columns: 
             120px          /* Datum */
             130px          /* Kunde */
-            150px          /* Jobname */
+            220px          /* Jobname */
             90px           /* Menge */
             minmax(150px, 1fr)    /* Details */
             130px          /* Betrag + MwSt. */
-            80px           /* Produzent */
-            60px 60px 60px 60px 60px  /* Checkboxen (5: Papier, Platten, Druck, Klar, Versand) */
-            90px 90px;  /* Buttons (2: Bearbeiten, Löschen) */
+            70px           /* Produzent */
+            48px 48px 48px 48px 48px  /* Checkboxen (5: Papier, Platten, Druck, Klar, Versand) */
+            80px 72px;  /* Buttons (2: Bearbeiten, Löschen) */
         gap: 8px;
         align-items: center;
         background: var(--color-white);
@@ -413,23 +413,23 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        min-width: 80px;
+        min-width: 48px;
     }
 
     .ready label {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
-        font-size: var(--font-size-xs);
+        gap: 2px;
+        font-size: 0.78rem;
         color: var(--color-gray-600);
         cursor: pointer;
         white-space: nowrap;
     }
 
     .ready input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
+        width: 16px;
+        height: 16px;
         cursor: pointer;
         accent-color: var(--color-success);
         flex-shrink: 0;
@@ -441,7 +441,7 @@
         font-weight: 600;
         white-space: nowrap;
         height: 32px;
-        min-width: 80px;
+        min-width: 72px;
     }
 
     button:nth-of-type(1) {
