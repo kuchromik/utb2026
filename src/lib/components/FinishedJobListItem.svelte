@@ -73,6 +73,24 @@
         return parts.join('\n');
     }
 
+    /**
+     * Formatiert die Rechnungsadresse aus den Jobdaten für den Tooltip
+     */
+    function formatBillingAddress() {
+        const b = job.billingAdress;
+        if (!b) return '';
+
+        const parts = [];
+        if (b.firma) parts.push(b.firma);
+        if (b.strasse) parts.push(b.strasse);
+        if (b.plz || b.ort) {
+            parts.push(`${b.plz || ''} ${b.ort || ''}`.trim());
+        }
+        if (b.land) parts.push(b.land);
+
+        return parts.join('\n');
+    }
+
     // Lade Lieferadresse wenn shipmentAddressId vorhanden
     $effect(() => {
         if (job.shipmentAddressId) {
@@ -92,12 +110,26 @@
     </div>
     <div class="jobname">
         <p title={job.jobname}>
-            {job.jobname}
+            <span class="jobname-text">{job.jobname}</span>
             {#if job.shipmentAddressId}
                 <span 
                     class="shipment-indicator" 
                     title={shipmentAddress ? `Abweichende Lieferadresse:\n${formatShipmentAddress()}` : 'Abweichende Lieferadresse (wird geladen...)'}>
                     📦
+                </span>
+            {/if}
+            {#if job.billingAdress}
+                <span
+                    class="billing-indicator"
+                    title={`Abweichende Rechnungsadresse:\n${formatBillingAddress()}`}>
+                    🧾
+                </span>
+            {/if}
+            {#if job.billingEmail}
+                <span
+                    class="billing-email-indicator"
+                    title={`Abweichende Rechnungs-E-Mail:\n${job.billingEmail}`}>
+                    📧
                 </span>
             {/if}
         </p>
@@ -208,9 +240,17 @@
     }
 
     .jobname p {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .jobname-text {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        flex: 1;
+        min-width: 0;
     }
 
     .quantity {
@@ -322,6 +362,21 @@
     }
 
     .shipment-indicator:hover {
+        transform: scale(1.2);
+    }
+
+    .billing-indicator,
+    .billing-email-indicator {
+        margin-left: 6px;
+        cursor: help;
+        font-size: 1.0em;
+        display: inline-block;
+        transition: transform 0.15s ease;
+        color: var(--color-gray-700);
+    }
+
+    .billing-indicator:hover,
+    .billing-email-indicator:hover {
         transform: scale(1.2);
     }
 </style>
