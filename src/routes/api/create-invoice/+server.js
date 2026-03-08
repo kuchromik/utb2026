@@ -6,7 +6,7 @@ const _require = createRequire(import.meta.url);
 /** @type {any} */
 const { jsPDF } = _require('jspdf');
 /** @type {(doc: any, options: any) => void} */
-const autoTable = _require('jspdf-autotable');
+const autoTable = _require('jspdf-autotable').default;
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import QRCode from 'qrcode';
