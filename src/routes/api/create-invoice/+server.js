@@ -360,39 +360,30 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     const netAmountOnly = netAmount - vatAmount;
 
     // A4: 210mm, left margin 20mm, right margin 20mm → usable: 170mm
-    // Col widths: Pos 12 + Beschreibung 93 + Menge 30 + Gesamt 35 = 170mm
+    // Col widths: Beschreibung 105 + Menge 30 + Gesamt 35 = 170mm
     autoTable(doc, {
         startY: yPos,
         margin: { left: 20, right: 20 },
-        head: [['Pos.', 'Beschreibung', 'Menge', 'Gesamt']],
+        head: [['Beschreibung', 'Menge', 'Gesamt']],
         body: [
             [
-                '1',
-                String(job.jobname || ''),
+                String(job.jobname || '') + (job.details ? '\n' + String(job.details) : ''),
                 `${job.quantity} Stück`,
                 `${netAmountOnly.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`
             ]
         ],
         theme: 'grid',
-        headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+        headStyles: { fillColor: [220, 220, 220], textColor: [50, 50, 50] },
         styles: { fontSize: 10, overflow: 'linebreak' },
         columnStyles: {
-            0: { cellWidth: 12 },
-            1: { cellWidth: 93 },
-            2: { cellWidth: 30 },
-            3: { cellWidth: 35, halign: 'right' }
+            0: { cellWidth: 105 },
+            1: { cellWidth: 30 },
+            2: { cellWidth: 35, halign: 'right' }
         }
     });
 
-    // Details zu Auftrag
+    // Summentabelle
     yPos = /** @type {any} */ (doc).lastAutoTable.finalY + 10;
-    if (job.details) {
-        doc.setFontSize(9);
-        doc.setTextColor(100);
-        const detailsLines = doc.splitTextToSize(`Details: ${String(job.details)}`, 170);
-        doc.text(detailsLines, 20, yPos);
-        yPos += detailsLines.length * 5 + 2;
-    }
     /*
     doc.text(`Produzent: ${job.producer}`, 20, yPos);
     yPos += 10;

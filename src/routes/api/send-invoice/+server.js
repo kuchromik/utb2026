@@ -11,7 +11,8 @@ export async function POST({ request }) {
     try {
         const { 
             customerEmail, 
-            customerName,
+            customerFirstName,
+            customerLastName,
             jobname, 
             invoiceNumber,
             amount,
@@ -21,7 +22,7 @@ export async function POST({ request }) {
         } = await request.json();
 
         // Validierung
-        if (!customerEmail || !customerName || !jobname || !invoiceNumber || !pdfBase64 || !fileName) {
+        if (!customerEmail || !customerFirstName || !customerLastName || !jobname || !invoiceNumber || !pdfBase64 || !fileName) {
             return json({ error: 'Fehlende erforderliche Felder' }, { status: 400 });
         }
 
@@ -56,7 +57,7 @@ export async function POST({ request }) {
         const subject = `Rechnung Nr. ${invoiceNumber} - ${jobname}`;
         
         const text = `
-Sehr geehrte/r ${customerName},
+Sehr geehrte/r ${customerFirstName} ${customerLastName},
 
 anbei erhalten Sie die Rechnung Nr. ${invoiceNumber} für Ihren Auftrag "${jobname}".
 
@@ -93,7 +94,7 @@ Chromik Offsetdruck
             <h2>📄 Rechnung Nr. ${invoiceNumber}</h2>
         </div>
         <div class="content">
-            <p>Sehr geehrte/r <strong>${customerName}</strong>,</p>
+            <p>Sehr geehrte/r <strong>${customerFirstName} ${customerLastName}</strong>,</p>
             <p>anbei erhalten Sie die Rechnung Nr. <strong>${invoiceNumber}</strong> für Ihren Auftrag "<strong>${jobname}</strong>".</p>
             <div class="invoice-info">
                 <strong>Rechnungsbetrag:</strong><br>
