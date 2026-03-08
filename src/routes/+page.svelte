@@ -189,6 +189,11 @@
             normalized.company = companyValue;
         }
 
+        const invoiceMail = String(customerData.invoiceMail ?? '').trim().toLowerCase();
+        if (invoiceMail) {
+            normalized.invoiceMail = invoiceMail;
+        }
+
         return normalized;
     }
 
