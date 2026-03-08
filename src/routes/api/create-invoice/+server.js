@@ -355,9 +355,14 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     
     const netAmount = Number(job.amount) || 0;
     const vatRate = Number(job.vatRate) || 19;
-    const vatAmount = (netAmount * vatRate) / (100 + vatRate);
-    const grossAmount = netAmount;
-    const netAmountOnly = netAmount - vatAmount;
+    const netAmountOnly = parseFloat((netAmount * 100 / (100 + vatRate)).toFixed(2));
+    const shippingNetto = (job.shippingCosts && job.shippingCosts.netto != null)
+        ? parseFloat(Number(job.shippingCosts.netto).toFixed(2))
+        : 0;
+    const hasShipping = shippingNetto > 0;
+    const nettosumme = parseFloat((netAmountOnly + shippingNetto).toFixed(2));
+    const vatAmount = parseFloat((nettosumme * vatRate / 100).toFixed(2));
+    const grossAmount = parseFloat((nettosumme + vatAmount).toFixed(2));
 
     // A4: 210mm, left margin 20mm, right margin 20mm → usable: 170mm
     // Col widths: Beschreibung 105 + Menge 30 + Gesamt 35 = 170mm
@@ -369,7 +374,7 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
             [
                 String(job.jobname || '') + (job.details ? '\n' + String(job.details) : ''),
                 `${job.quantity} Stück`,
-                `${netAmountOnly.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`
+                `${netAmountOnly.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
             ]
         ],
         theme: 'grid',
@@ -393,9 +398,13 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
         startY: yPos,
         margin: { left: 20, right: 20 },
         body: [
-            ['Nettobetrag', `${netAmountOnly.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`],
-            [`MwSt. ${vatRate}%`, `${vatAmount.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`],
-            ['Gesamtbetrag', `${grossAmount.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`]
+            ['Nettobetrag', `${netAmountOnly.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`],
+            ...(hasShipping ? [
+                ['Versandkosten netto', `${shippingNetto.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`],
+                ['Nettosumme', `${nettosumme.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`]
+            ] : []),
+            [`MwSt. ${vatRate}%`, `${vatAmount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`],
+            ['Gesamtbetrag', `${grossAmount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`]
         ],
         styles: { fontSize: 10 },
         columnStyles: {
@@ -404,7 +413,8 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
         },
         theme: 'plain',
         didParseCell: function(data) {
-            if (data.row.index === 2) {
+            const lastRowIndex = hasShipping ? 4 : 2;
+            if (data.row.index === lastRowIndex) {
                 data.cell.styles.fontStyle = 'bold';
             }
         }
