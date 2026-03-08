@@ -737,7 +737,20 @@
         if (!jobForInvoice || !customerForInvoice) return;
 
         try {
-            // Schritt 1: PDF erstellen und in Firebase speichern
+            // Priorisierung der Rechnungsmail: job.billingEmail > customer.invoiceMail > customer.email
+            const invoiceEmail = jobForInvoice.billingEmail || 
+                customerForInvoice.invoiceMail || 
+                customerForInvoice.email;
+            
+            if (!invoiceEmail) {
+                alert('Keine E-Mail-Adresse für den Kunden gefunden!');
+                return;
+            }
+
+            const customerName = customerForInvoice.company || 
+                `${customerForInvoice.firstName || ''} ${customerForInvoice.lastName || ''}`.trim();
+
+            // PDF erstellen und E-Mail direkt serverseitig versenden (kein PDF-Roundtrip)
             console.log('Sende Anfrage an /api/create-invoice...');
             const invoiceResponse = await fetch('/api/create-invoice', {
                 method: 'POST',
@@ -745,7 +758,11 @@
                 body: JSON.stringify({
                     job: jobForInvoice,
                     customer: customerForInvoice,
-                    userId: user
+                    userId: user,
+                    invoiceEmail,
+                    customerName,
+                    amount: jobForInvoice.amount,
+                    vatRate: jobForInvoice.vatRate || 19
                 })
             });
 
@@ -760,52 +777,9 @@
             }
 
             const invoiceData = await invoiceResponse.json();
-            console.log('Rechnung erstellt:', invoiceData);
+            console.log('Rechnung erstellt und versendet:', invoiceData);
 
-            // Schritt 2: E-Mail mit PDF versenden
-            // Priorisierung: job.billingEmail > customer.invoiceMail > customer.email
-            const invoiceEmail = jobForInvoice.billingEmail || 
-                customerForInvoice.invoiceMail || 
-                customerForInvoice.email;
-            
-            if (!invoiceEmail) {
-                alert('Keine E-Mail-Adresse für den Kunden gefunden!');
-                return;
-            }
-
-            const customerName = customerForInvoice.company || 
-                `${customerForInvoice.firstName || ''} ${customerForInvoice.lastName || ''}`.trim();
-
-            console.log('Sende Rechnung per E-Mail...');
-            const emailResponse = await fetch('/api/send-invoice', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    customerEmail: invoiceEmail,
-                    customerName: customerName,
-                    jobname: jobForInvoice.jobname,
-                    invoiceNumber: invoiceData.invoiceNumber,
-                    amount: jobForInvoice.amount.toLocaleString('de-DE', { 
-                        minimumFractionDigits: 2, 
-                        maximumFractionDigits: 2 
-                    }),
-                    vatRate: jobForInvoice.vatRate || 19,
-                    pdfBase64: invoiceData.pdfBase64,
-                    fileName: invoiceData.fileName
-                })
-            });
-
-            console.log('E-Mail Antwort Status:', emailResponse.status);
-
-            if (!emailResponse.ok) {
-                const error = await emailResponse.json();
-                console.error('Server-Fehler beim E-Mail-Versand:', error);
-                const errorMsg = error.error || 'Fehler beim E-Mail-Versand';
-                const errorDetails = error.details || 'Keine Details verfügbar';
-                throw new Error(`${errorMsg}\nDetails: ${errorDetails}`);
-            }
-
-            // Schritt 3: Job als "invoice_ready" markieren
+            // Job als "invoice_ready" markieren
             const jobRef = doc(db, "Jobs", jobForInvoice.id);
             await updateDoc(jobRef, {
                 invoice_ready: true,

@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
+import nodemailer from 'nodemailer';
 import _jspdfModule from 'jspdf';
 import _autoTableModule from 'jspdf-autotable';
 
@@ -104,7 +105,7 @@ export async function POST({ request }) {
             }, { status: 500 });
         }
 
-        const { job, customer, userId } = await request.json();
+        const { job, customer, userId, invoiceEmail, customerName, amount, vatRate } = await request.json();
 
         if (!job || !customer || !userId) {
             return json({ error: 'Fehlende erforderliche Daten' }, { status: 400 });
@@ -163,13 +164,53 @@ export async function POST({ request }) {
 
         console.log('Rechnungsnummer erhöht von', currentInvoiceNumber, 'auf', nextInvoiceNumber);
 
-        // PDF als Base64 für E-Mail-Anhang
-        const pdfBase64 = pdfBuffer.toString('base64');
+        // E-Mail direkt serverseitig versenden (kein PDF-Roundtrip durch den Browser)
+        if (invoiceEmail) {
+            const smtpHost = env.SMTP_HOST || 'smtp.gmail.com';
+            const smtpPort = parseInt(env.SMTP_PORT || '587');
+            const smtpSecure = env.SMTP_SECURE === 'true';
+            const smtpUser = env.SMTP_USER;
+            const smtpPass = env.SMTP_PASS;
+            const smtpFrom = env.SMTP_FROM || smtpUser;
+
+            if (!smtpUser || !smtpPass) {
+                return json({ error: 'SMTP-Zugangsdaten nicht konfiguriert' }, { status: 500 });
+            }
+
+            const transporter = nodemailer.createTransport({
+                host: smtpHost,
+                port: smtpPort,
+                secure: smtpSecure,
+                auth: { user: smtpUser, pass: smtpPass }
+            });
+
+            const displayAmount = typeof amount === 'string' ? amount
+                : Number(amount).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const displayVat = vatRate || job.vatRate || 19;
+            const displayName = customerName || customer.company ||
+                `${customer.firstName || ''} ${customer.lastName || ''}`.trim();
+            const subject = `Rechnung Nr. ${currentInvoiceNumber} - ${job.jobname}`;
+
+            const text = `Sehr geehrte/r ${displayName},\n\nanbei erhalten Sie die Rechnung Nr. ${currentInvoiceNumber} für Ihren Auftrag "${job.jobname}".\n\nRechnungsbetrag: ${displayAmount} € (inkl. ${displayVat}% MwSt.)\n\nBitte überweisen Sie den Rechnungsbetrag innerhalb von 14 Tagen auf das in der Rechnung angegebene Konto.\n\nMit freundlichen Grüßen\nKai-Uwe Chromik\nChromik Offsetdruck`;
+
+            const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}.container{max-width:600px;margin:0 auto;padding:20px}.header{background:linear-gradient(135deg,#3B82F6 0%,#2563EB 100%);color:white;padding:20px;border-radius:8px;margin-bottom:20px}.content{background:#f9f9f9;padding:20px;border-radius:8px}.invoice-info{background:#fff;padding:15px;border-left:4px solid #3B82F6;margin:15px 0}.amount{font-size:1.2em;color:#059669;font-weight:bold}.footer{margin-top:20px;font-size:0.9em;color:#666}.attachment-note{background:#FEF3C7;padding:10px;border-radius:5px;margin-top:15px}</style></head><body><div class="container"><div class="header"><h2>📄 Rechnung Nr. ${currentInvoiceNumber}</h2></div><div class="content"><p>Sehr geehrte/r <strong>${displayName}</strong>,</p><p>anbei erhalten Sie die Rechnung Nr. <strong>${currentInvoiceNumber}</strong> für Ihren Auftrag "<strong>${job.jobname}</strong>".</p><div class="invoice-info"><strong>Rechnungsbetrag:</strong><br><span class="amount">${displayAmount} € (inkl. ${displayVat}% MwSt.)</span></div><p>Bitte überweisen Sie den Rechnungsbetrag innerhalb von <strong>14 Tagen</strong> auf das in der Rechnung angegebene Konto.</p><div class="attachment-note">📎 Die Rechnung finden Sie als PDF-Anhang dieser E-Mail.</div><p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p></div><div class="footer"><p>Mit freundlichen Grüßen<br><strong>Kai-Uwe Chromik</strong><br>Chromik Offsetdruck</p></div></div></body></html>`;
+
+            await transporter.sendMail({
+                from: smtpFrom,
+                to: invoiceEmail,
+                bcc: 'invoicelog@online.de',
+                subject,
+                text,
+                html,
+                attachments: [{ filename: invoiceFileName, content: pdfBuffer, contentType: 'application/pdf' }]
+            });
+
+            console.log('Rechnung per E-Mail versendet an:', invoiceEmail);
+        }
 
         return json({
             success: true,
             invoiceNumber: currentInvoiceNumber,
-            pdfBase64,
             fileName: invoiceFileName
         });
 
@@ -192,7 +233,7 @@ export async function POST({ request }) {
  * @returns {Promise<jsPDF>} PDF-Dokument
  */
 async function createInvoicePDF(job, customer, company, invoiceNumber) {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ compress: true });
     
     // Logo laden und einfügen (oben rechts mit 20mm Abstand)
     try {
