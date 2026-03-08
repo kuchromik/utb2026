@@ -10,12 +10,12 @@
     <div class="header-item">Det.</div>
     <div class="header-item">Betrag</div>
     <div class="header-item">Prod.</div>
+    <div class="header-item">Ship?</div>
+    <div class="header-item">Dat.</div>
     <div class="header-item">Pap.</div>
     <div class="header-item">Plat.</div>
     <div class="header-item">Druck</div>
-    <div class="header-item">Dat.</div>
     <div class="header-item">Klar?</div>
-    <div class="header-item">Vers.</div>
     <div class="header-item" style="grid-column: span 2; text-align: center;">Akt.</div>
 </div>
 

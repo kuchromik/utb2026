@@ -19,6 +19,7 @@
     let city = $state('');
     let countryCode = $state('DE');
     let email = $state('');
+    let invoiceMail = $state('');
     let error = $state('');
     /** @type {HTMLInputElement | undefined} */
     let activeInput = $state(undefined);
@@ -33,6 +34,7 @@
             city = customer.city ?? '';
             countryCode = customer.countryCode ?? 'DE';
             email = customer.email ?? '';
+            invoiceMail = customer.invoiceMail ?? '';
             error = '';
 
             tick().then(() => activeInput?.focus());
@@ -106,7 +108,8 @@
                     zip: zip.trim(),
                     city: city.trim(),
                     countryCode: countryCode.trim().toUpperCase(),
-                    email: email.trim().toLowerCase()
+                    email: email.trim().toLowerCase(),
+                    invoiceMail: invoiceMail.trim().toLowerCase() || undefined
                 });
             }
             show = false;
@@ -187,6 +190,12 @@
                 <div>
                     <label for="edit-email">E-Mail *</label>
                     <input id="edit-email" type="email" bind:value={email} />
+                </div>
+
+                <div class="full-width">
+                    <label for="edit-invoice-mail">Abweichende Rechnungs-E-Mail (optional)</label>
+                    <input id="edit-invoice-mail" type="email" bind:value={invoiceMail} placeholder="z.B. buchhaltung@firma.de" />
+                    <p class="hint">Wenn angegeben, werden Rechnungen immer an diese Adresse versendet (statt an die Haupt-E-Mail).</p>
                 </div>
             </div>
 
@@ -308,6 +317,13 @@
         border-radius: var(--radius-md);
         margin-top: var(--spacing-md);
         border-left: 4px solid var(--color-danger);
+    }
+
+    .hint {
+        font-size: var(--font-size-xs);
+        color: var(--color-gray-500);
+        margin-top: var(--spacing-xs);
+        font-style: italic;
     }
 
     .modal-buttons {

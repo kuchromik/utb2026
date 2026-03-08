@@ -927,7 +927,8 @@
                 zip: customerData.zip.trim(),
                 city: customerData.city.trim(),
                 countryCode: customerData.countryCode.trim().toUpperCase(),
-                email: customerData.email.trim().toLowerCase()
+                email: customerData.email.trim().toLowerCase(),
+                ...(customerData.invoiceMail ? { invoiceMail: customerData.invoiceMail.trim().toLowerCase() } : {})
             });
         } catch (error) {
             console.error("Error adding customer:", error);
@@ -955,7 +956,8 @@
                 zip: customerData.zip.trim(),
                 city: customerData.city.trim(),
                 countryCode: customerData.countryCode.trim().toUpperCase(),
-                email: customerData.email.trim().toLowerCase()
+                email: customerData.email.trim().toLowerCase(),
+                ...(customerData.invoiceMail ? { invoiceMail: customerData.invoiceMail.trim().toLowerCase() } : { invoiceMail: deleteField() })
             });
 
             if (previousLabel !== nextLabel) {

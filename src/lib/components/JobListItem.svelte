@@ -163,6 +163,36 @@
     
     {#if showReadyChecks}
         <div class="ready">
+            <label>
+                toShip?
+                <input 
+                    type="checkbox" 
+                    name="toShip?" 
+                    checked={Boolean(job.toShip)}
+                    onchange={(event) => {
+                        const target = /** @type {HTMLInputElement} */ (event.currentTarget);
+                        onToggleReady("toShip", job.id, !target.checked);
+                    }}
+                />
+            </label>
+        </div>
+
+        <div class="ready">
+            <label>
+                Daten?
+                <input 
+                    type="checkbox" 
+                    name="Daten?" 
+                    checked={Boolean(job.dataChecked)}
+                    onchange={(event) => {
+                        const target = /** @type {HTMLInputElement} */ (event.currentTarget);
+                        onToggleReady("dataChecked", job.id, !target.checked);
+                    }}
+                />
+            </label>
+        </div>
+
+        <div class="ready">
             {#if (job.producer === 'chr' || job.producer === 'doe')}
                 <label>
                     Papier?
@@ -218,21 +248,6 @@
                 <input type="hidden" name="Druck?"/>
             {/if}
         </div>
-
-        <div class="ready">
-            <label>
-                Daten?
-                <input 
-                    type="checkbox" 
-                    name="Daten?" 
-                    checked={Boolean(job.dataChecked)}
-                    onchange={(event) => {
-                        const target = /** @type {HTMLInputElement} */ (event.currentTarget);
-                        onToggleReady("dataChecked", job.id, !target.checked);
-                    }}
-                />
-            </label>
-        </div>
         
         <div class="ready">
             <label>
@@ -244,21 +259,6 @@
                     onchange={(event) => {
                         const target = /** @type {HTMLInputElement} */ (event.currentTarget);
                         onToggleReady("shipped", job.id, !target.checked);
-                    }}
-                />
-            </label>
-        </div>
-        
-        <div class="ready">
-            <label>
-                Versand?
-                <input 
-                    type="checkbox" 
-                    name="Versand?" 
-                    checked={Boolean(job.toShip)}
-                    onchange={(event) => {
-                        const target = /** @type {HTMLInputElement} */ (event.currentTarget);
-                        onToggleReady("toShip", job.id, !target.checked);
                     }}
                 />
             </label>
