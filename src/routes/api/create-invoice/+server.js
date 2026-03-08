@@ -1,12 +1,15 @@
 import { json } from '@sveltejs/kit';
-import { createRequire } from 'module';
 import { env } from '$env/dynamic/private';
+import _jspdfModule from 'jspdf';
+import _autoTableModule from 'jspdf-autotable';
 
-const _require = createRequire(import.meta.url);
+// When Vite bundles CJS modules, module.exports becomes the default export.
+// jspdf:          default = { jsPDF: constructor, ... }  → destructure directly
+// jspdf-autotable: default = { default: fn, ... }        → take .default for the function
 /** @type {any} */
-const { jsPDF } = _require('jspdf');
+const { jsPDF } = /** @type {any} */ (_jspdfModule);
 /** @type {(doc: any, options: any) => void} */
-const autoTable = _require('jspdf-autotable').default;
+const autoTable = /** @type {any} */ (_autoTableModule).default;
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import QRCode from 'qrcode';
