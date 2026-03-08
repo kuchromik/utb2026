@@ -1,7 +1,12 @@
 import { json } from '@sveltejs/kit';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { createRequire } from 'module';
 import { env } from '$env/dynamic/private';
+
+const _require = createRequire(import.meta.url);
+/** @type {any} */
+const { jsPDF } = _require('jspdf');
+/** @type {(doc: any, options: any) => void} */
+const autoTable = _require('jspdf-autotable');
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import QRCode from 'qrcode';
