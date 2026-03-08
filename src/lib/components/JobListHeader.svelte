@@ -3,6 +3,7 @@
 
 <div class="job-list-header">
     <div class="header-item">Datum</div>
+    <div class="header-item">Termin</div>
     <div class="header-item">Kunde</div>
     <div class="header-item">Auftrag</div>
     <div class="header-item">Menge</div>
@@ -12,9 +13,10 @@
     <div class="header-item">Pap.</div>
     <div class="header-item">Plat.</div>
     <div class="header-item">Druck</div>
+    <div class="header-item">Dat.</div>
     <div class="header-item">Klar?</div>
     <div class="header-item">Vers.</div>
-    <div class="header-item" style="grid-column: span 2; text-align: center;">Aktion</div>
+    <div class="header-item" style="grid-column: span 2; text-align: center;">Akt.</div>
 </div>
 
 <style>
@@ -22,14 +24,15 @@
         display: grid;
         grid-template-columns: 
             120px          /* Datum */
-            130px          /* Kunde */
-            150px          /* Jobname */
-            90px           /* Menge */
-            minmax(150px, 1fr)    /* Details */
-            100px          /* Betrag */
-            80px           /* Produzent */
-            60px 60px 60px 60px 60px  /* Checkboxen (5: Papier, Platten, Druck, Klar, Versand) */
-            90px 90px;  /* Buttons (2: Bearbeiten, Löschen) */
+            88px           /* Liefertermin */
+            125px          /* Kunde */
+            200px          /* Jobname */
+            75px           /* Menge */
+            minmax(100px, 1fr)    /* Details */
+            120px          /* Betrag */
+            65px           /* Produzent */
+            48px 48px 48px 48px 48px 48px  /* Checkboxen (6: Papier, Platten, Druck, Daten, Klar, Versand) */
+            58px 58px;     /* Buttons (B, L) */
         gap: 8px;
         align-items: center;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -50,16 +53,16 @@
         text-overflow: ellipsis;
     }
 
-    .header-item:nth-child(4),
-    .header-item:nth-child(6) {
+    .header-item:nth-child(5),
+    .header-item:nth-child(7) {
         text-align: center;
     }
 
-    .header-item:nth-child(6) {
+    .header-item:nth-child(7) {
         text-align: right;
     }
 
-    .header-item:nth-child(n+8):nth-child(-n+12) {
+    .header-item:nth-child(n+9):nth-child(-n+14) {
         text-align: center;
         font-size: var(--font-size-xs);
     }

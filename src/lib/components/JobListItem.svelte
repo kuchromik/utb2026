@@ -108,6 +108,13 @@
             {new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}
         </p>
     </div>
+    <div class="shipdate">
+        {#if job.shipDate}
+            <p title="Liefertermin / Versand">{job.shipDate.split('-').reverse().join('.')}</p>
+        {:else}
+            <p class="shipdate-empty">–</p>
+        {/if}
+    </div>
     <div class="customer">
         <p title={job.customer}><strong>{job.customer}</strong></p>
     </div>
@@ -211,6 +218,21 @@
                 <input type="hidden" name="Druck?"/>
             {/if}
         </div>
+
+        <div class="ready">
+            <label>
+                Daten?
+                <input 
+                    type="checkbox" 
+                    name="Daten?" 
+                    checked={Boolean(job.dataChecked)}
+                    onchange={(event) => {
+                        const target = /** @type {HTMLInputElement} */ (event.currentTarget);
+                        onToggleReady("dataChecked", job.id, !target.checked);
+                    }}
+                />
+            </label>
+        </div>
         
         <div class="ready">
             <label>
@@ -242,11 +264,11 @@
             </label>
         </div>
         
-        <button onclick={() => onEdit(job, index)}>
-            Bearbeiten
+        <button onclick={() => onEdit(job, index)} title="Bearbeiten">
+            B
         </button>
-        <button onclick={() => onDelete(job.id)}>
-            Löschen
+        <button onclick={() => onDelete(job.id)} title="Löschen">
+            L
         </button>
     {/if}
 </div>
@@ -256,6 +278,13 @@
         <p title={new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}>
             {new Date(job.jobstart * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}
         </p>
+    </div>
+    <div class="shipdate">
+        {#if job.shipDate}
+            <p title="Liefertermin / Versand">{job.shipDate.split('-').reverse().join('.')}</p>
+        {:else}
+            <p class="shipdate-empty">–</p>
+        {/if}
     </div>
     <div class="customer">
         <p title={job.customer}><strong>{job.customer}</strong></p>
@@ -299,14 +328,15 @@
         display: grid;
         grid-template-columns: 
             120px          /* Datum */
-            130px          /* Kunde */
-            220px          /* Jobname */
-            90px           /* Menge */
-            minmax(150px, 1fr)    /* Details */
-            130px          /* Betrag + MwSt. */
-            70px           /* Produzent */
-            48px 48px 48px 48px 48px  /* Checkboxen (5: Papier, Platten, Druck, Klar, Versand) */
-            80px 72px;  /* Buttons (2: Bearbeiten, Löschen) */
+            88px           /* Liefertermin */
+            125px          /* Kunde */
+            200px          /* Jobname */
+            75px           /* Menge */
+            minmax(100px, 1fr)    /* Details */
+            120px          /* Betrag + MwSt. */
+            65px           /* Produzent */
+            48px 48px 48px 48px 48px 48px  /* Checkboxen (6: Papier, Platten, Druck, Daten, Klar, Versand) */
+            58px 58px;     /* Buttons (B, L) */
         gap: 8px;
         align-items: center;
         background: var(--color-white);
@@ -354,6 +384,24 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    .shipdate {
+        font-size: var(--font-size-sm);
+        color: var(--color-primary);
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .shipdate p {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .shipdate-empty {
+        color: var(--color-gray-300);
+        font-weight: normal;
     }
 
     .customer {
@@ -468,12 +516,13 @@
     }
 
     button {
-        padding: var(--spacing-xs) var(--spacing-sm);
-        font-size: var(--font-size-xs);
-        font-weight: 600;
+        padding: var(--spacing-xs) var(--spacing-xs);
+        font-size: var(--font-size-sm);
+        font-weight: 700;
         white-space: nowrap;
         height: 32px;
-        min-width: 72px;
+        min-width: 0;
+        width: 100%;
     }
 
     button:nth-of-type(1) {
@@ -511,12 +560,13 @@
         display: grid;
         grid-template-columns: 
             120px          /* Datum */
-            130px          /* Kunde */
+            88px           /* Liefertermin */
+            125px          /* Kunde */
             150px          /* Jobname */
-            90px           /* Menge */
-            minmax(150px, 1fr)    /* Details */
-            130px          /* Betrag + MwSt. */
-            100px          /* Produzent */
+            75px           /* Menge */
+            minmax(100px, 1fr)    /* Details */
+            120px          /* Betrag + MwSt. */
+            90px           /* Produzent */
             100px;         /* Button */
         gap: 8px;
         align-items: center;

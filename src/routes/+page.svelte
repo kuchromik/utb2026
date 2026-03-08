@@ -16,6 +16,7 @@
     import FinishedJobListHeader from '$lib/components/FinishedJobListHeader.svelte';
     import ShippedConfirmModal from '$lib/components/ShippedConfirmModal.svelte';
     import InvoiceConfirmModal from '$lib/components/InvoiceConfirmModal.svelte';
+    import DataCheckedModal from '$lib/components/DataCheckedModal.svelte';
 
     /** @typedef {import('$lib/types').Customer} Customer */
     /** @typedef {import('$lib/types').JobFormData} JobFormData */
@@ -70,6 +71,9 @@
     let jobForInvoice = $state(null);
     /** @type {Customer | null} */
     let customerForInvoice = $state(null);
+    /** @type {Job | null} */
+    let jobForDataChecked = $state(null);
+    let showDataCheckedModal = $state(false);
     
     // Edit mode
     /** @type {Job | null} */
@@ -449,6 +453,16 @@
             }
         }
 
+        // Spezialbehandlung für "dataChecked" - zeige Datenprüfungs-Modal
+        if (whatsIsReady === 'dataChecked' && isReady === false) {
+            const job = jobs.find(j => j.id === ID);
+            if (job) {
+                jobForDataChecked = job;
+                showDataCheckedModal = true;
+                return;
+            }
+        }
+
         // Spezialbehandlung für "invoice" - zeige Bestätigungsmodal und erstelle Rechnung
         if (whatsIsReady === 'invoice') {
             console.log('Invoice button clicked for job:', ID);
@@ -508,7 +522,8 @@
             print: "print_ready",
             shipped: "shipped_ready",
             invoice: "invoice_ready",
-            toShip: "toShip"
+            toShip: "toShip",
+            dataChecked: "dataChecked"
         };
         
         const fieldName = updateField[whatsIsReady];
@@ -628,6 +643,89 @@
     function cancelShippedConfirm() {
         showShippedConfirmModal = false;
         jobForShippedConfirm = null;
+    }
+
+    /** @param {string} shipDate */
+    async function confirmDataCheckedAndSendEmail(shipDate) {
+        if (!jobForDataChecked) return;
+
+        try {
+            const jobRef = doc(db, "Jobs", jobForDataChecked.id);
+            await updateDoc(jobRef, {
+                dataChecked: true,
+                shipDate: shipDate
+            });
+
+            // Suche Kunden-E-Mail
+            const customerId = jobForDataChecked.customerId;
+            const jobCustomer = jobForDataChecked.customer;
+            let customer = undefined;
+
+            if (customerId) {
+                customer = customers.find(c => c.id === customerId);
+            }
+            if (!customer) {
+                customer = customers.find(c => getCustomerLabel(c) === jobCustomer);
+            }
+
+            if (!customer) {
+                alert(`Warnung: Kunde nicht gefunden!\n\nDer Status wurde aktualisiert, aber keine E-Mail wurde versendet.`);
+            } else if (!customer.email || customer.email.trim() === '') {
+                alert(`Warnung: Kunde "${jobCustomer}" hat keine E-Mail-Adresse hinterlegt!\n\nDer Status wurde aktualisiert, aber keine E-Mail wurde versendet.`);
+            } else {
+                const response = await fetch('/api/send-data-checked-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customerEmail: customer.email,
+                        customerFirstName: customer.firstName,
+                        customerLastName: customer.lastName,
+                        jobname: jobForDataChecked.jobname,
+                        toShip: Boolean(jobForDataChecked.toShip),
+                        shipDate: shipDate
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert('E-Mail über Datenfreigabe erfolgreich versendet!');
+                } else {
+                    alert(`Fehler beim E-Mail-Versand: ${result.error}\n\nDetails: ${result.details || 'Keine weiteren Informationen'}`);
+                }
+            }
+        } catch (error) {
+            console.error('Fehler beim Bestätigen der Datenprüfung:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            alert('Fehler beim Verarbeiten der Anfrage: ' + errorMessage);
+        } finally {
+            showDataCheckedModal = false;
+            jobForDataChecked = null;
+        }
+    }
+
+    /** @param {string} shipDate */
+    async function confirmDataCheckedWithoutEmail(shipDate) {
+        if (!jobForDataChecked) return;
+
+        try {
+            const jobRef = doc(db, "Jobs", jobForDataChecked.id);
+            await updateDoc(jobRef, {
+                dataChecked: true,
+                shipDate: shipDate
+            });
+        } catch (error) {
+            console.error('Fehler beim Speichern der Datenprüfung:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            alert('Fehler beim Speichern: ' + errorMessage);
+        } finally {
+            showDataCheckedModal = false;
+            jobForDataChecked = null;
+        }
+    }
+
+    function cancelDataCheckedModal() {
+        showDataCheckedModal = false;
+        jobForDataChecked = null;
     }
 
     async function createAndSendInvoice() {
@@ -778,6 +876,7 @@
             shipped_ready: false,
             invoice_ready: false,
             toShip: false,
+            dataChecked: false,
             archiv: false,
             finished: false
         });
@@ -1159,6 +1258,15 @@
     onConfirm={createAndSendInvoice}
     onCancel={cancelInvoice}
 />
+
+{#if showDataCheckedModal && jobForDataChecked}
+    <DataCheckedModal
+        job={jobForDataChecked}
+        onConfirm={confirmDataCheckedAndSendEmail}
+        onConfirmWithoutEmail={confirmDataCheckedWithoutEmail}
+        onCancel={cancelDataCheckedModal}
+    />
+{/if}
 
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');

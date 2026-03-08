@@ -70,9 +70,11 @@ export type Job = JobFormData & {
         land?: string;
     };
     shipmentAddressId?: string;
+    dataChecked?: boolean;
+    shipDate?: string;
 };
 
-export type ReadyType = 'paper' | 'plates' | 'print' | 'shipped' | 'invoice' | 'toShip';
+export type ReadyType = 'paper' | 'plates' | 'print' | 'shipped' | 'invoice' | 'toShip' | 'dataChecked';
 
 export type UnsubscribeFn = () => void;
 
