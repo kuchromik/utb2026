@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { env } from '$env/dynamic/private';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -267,21 +267,21 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     
     if (job.billingAddress) {
         // Verwende die job-spezifische Rechnungsadresse
-        customerName = job.billingAddress.firma || '';
+        customerName = String(job.billingAddress.firma || '');
         customerAddress = [
             customerName,
-            job.billingAddress.strasse || '',
-            `${job.billingAddress.plz || ''} ${job.billingAddress.ort || ''}`,
-            job.billingAddress.land || ''
+            String(job.billingAddress.strasse || ''),
+            `${String(job.billingAddress.plz || '')} ${String(job.billingAddress.ort || '')}`.trim(),
+            String(job.billingAddress.land || '')
         ].filter(Boolean);
     } else {
         // Verwende die Standard-Kundenadresse
-        customerName = customer.company || `${customer.firstName || ''} ${customer.lastName || ''}`.trim();
+        customerName = String(customer.company || `${customer.firstName || ''} ${customer.lastName || ''}`.trim());
         customerAddress = [
             customerName,
-            customer.street || customer.address || '',
-            `${customer.zip || ''} ${customer.city || ''}`,
-            customer.country || ''
+            String(customer.street || customer.address || ''),
+            `${String(customer.zip || '')} ${String(customer.city || '')}`.trim(),
+            String(customer.country || '')
         ].filter(Boolean);
     }
     
@@ -304,54 +304,54 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     // Auftragsdetails als Tabelle
     yPos = Math.max(yPos + 10, 120);
     
-    const netAmount = job.amount;
-    const vatRate = job.vatRate || 19;
+    const netAmount = Number(job.amount) || 0;
+    const vatRate = Number(job.vatRate) || 19;
     const vatAmount = (netAmount * vatRate) / (100 + vatRate);
     const grossAmount = netAmount;
     const netAmountOnly = netAmount - vatAmount;
 
-    // @ts-ignore - autoTable wird durch Plugin hinzugefügt
-    doc.autoTable({
+    // A4: 210mm, left margin 20mm, right margin 20mm → usable: 170mm
+    // Col widths: Pos 12 + Beschreibung 93 + Menge 30 + Gesamt 35 = 170mm
+    autoTable(doc, {
         startY: yPos,
-        margin: { left: 20 },
+        margin: { left: 20, right: 20 },
         head: [['Pos.', 'Beschreibung', 'Menge', 'Gesamt']],
         body: [
             [
                 '1',
-                job.jobname,
+                String(job.jobname || ''),
                 `${job.quantity} Stück`,
                 `${netAmountOnly.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`
             ]
         ],
         theme: 'grid',
         headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-        styles: { fontSize: 10 },
+        styles: { fontSize: 10, overflow: 'linebreak' },
         columnStyles: {
-            0: { cellWidth: 15 }, // Position - schmaler
-            1: { cellWidth: 'auto' }, // Beschreibung - flexibel
-            2: { cellWidth: 25 }, // Menge
-            3: { cellWidth: 30, halign: 'right' } // Gesamt - rechtsbündig
+            0: { cellWidth: 12 },
+            1: { cellWidth: 93 },
+            2: { cellWidth: 30 },
+            3: { cellWidth: 35, halign: 'right' }
         }
     });
 
     // Details zu Auftrag
-    // @ts-ignore - lastAutoTable wird durch Plugin hinzugefügt
-    yPos = doc.lastAutoTable.finalY + 10;
+    yPos = /** @type {any} */ (doc).lastAutoTable.finalY + 10;
     if (job.details) {
         doc.setFontSize(9);
         doc.setTextColor(100);
-        doc.text(`Details: ${job.details}`, 20, yPos);
-        yPos += 7;
+        const detailsLines = doc.splitTextToSize(`Details: ${String(job.details)}`, 170);
+        doc.text(detailsLines, 20, yPos);
+        yPos += detailsLines.length * 5 + 2;
     }
     /*
     doc.text(`Produzent: ${job.producer}`, 20, yPos);
     yPos += 10;
     */
     // Summentabelle
-    // @ts-ignore - autoTable wird durch Plugin hinzugefügt
-    doc.autoTable({
+    autoTable(doc, {
         startY: yPos,
-        margin: { left: 20 },
+        margin: { left: 20, right: 20 },
         body: [
             ['Nettobetrag', `${netAmountOnly.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`],
             [`MwSt. ${vatRate}%`, `${vatAmount.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`],
@@ -359,12 +359,11 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
         ],
         styles: { fontSize: 10 },
         columnStyles: {
-            0: { fontStyle: 'bold', cellWidth: 40 },
-            1: { halign: 'right', cellWidth: 30 }
+            0: { fontStyle: 'bold', cellWidth: 50 },
+            1: { halign: 'right', cellWidth: 35 }
         },
         theme: 'plain',
         didParseCell: function(data) {
-            // Gesamtbetrag (letzte Zeile) fett drucken
             if (data.row.index === 2) {
                 data.cell.styles.fontStyle = 'bold';
             }
@@ -429,7 +428,7 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
         // QR-Code rechts neben den Zahlungsinformationen platzieren
         const qrSize = 35; // mm
         const qrX = 130; // rechts positioniert
-        const qrY = doc.lastAutoTable.finalY + 15; // gleiche Höhe wie "Zahlungsinformationen:"
+        const qrY = /** @type {any} */ (doc).lastAutoTable.finalY + 15; // gleiche Höhe wie "Zahlungsinformationen:"
         
         doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
         
