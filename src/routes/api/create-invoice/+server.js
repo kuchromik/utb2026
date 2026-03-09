@@ -356,8 +356,8 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     const netAmount = Number(job.amount) || 0;
     const vatRate = Number(job.vatRate) || 19;
     const netAmountOnly = parseFloat((netAmount * 100 / (100 + vatRate)).toFixed(2));
-    const shippingNetto = (job.shippingCosts && job.shippingCosts.netto != null)
-        ? parseFloat(Number(job.shippingCosts.netto).toFixed(2))
+    const shippingNetto = (job.shippingCosts != null)
+        ? parseFloat(Number(job.shippingCosts).toFixed(2))
         : 0;
     const hasShipping = shippingNetto > 0;
     const nettosumme = parseFloat((netAmountOnly + shippingNetto).toFixed(2));
