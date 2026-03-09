@@ -51,6 +51,19 @@
             customer.country || ''
         ].filter(Boolean).join(', ');
     }
+
+    function calcInvoice() {
+        if (!job) return null;
+        const netto = parseFloat((Number(job.amount) || 0).toFixed(2));
+        const shipping = parseFloat((Number(job.shippingCosts) || 0).toFixed(2));
+        const vatRate = Number(job.vatRate) || 19;
+        const nettosumme = parseFloat((netto + shipping).toFixed(2));
+        const mwst = parseFloat((nettosumme * vatRate / 100).toFixed(2));
+        const gesamt = parseFloat((nettosumme + mwst).toFixed(2));
+        return { netto, shipping, vatRate, nettosumme, mwst, gesamt };
+    }
+
+    const fmt = (/** @type {number} */ n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 </script>
 
 {#if show}
@@ -87,10 +100,33 @@
                         </div>
                     {/if}
                     
-                    <div class="detail-row">
-                        <strong>Betrag:</strong>
-                        <span>{job.amount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € (inkl. {job.vatRate ?? 19}% MwSt.)</span>
-                    </div>
+                    {#if calcInvoice()}
+                        {@const c = calcInvoice()}
+                        <div class="calc-table">
+                            <div class="calc-row">
+                                <span>Nettobetrag</span>
+                                <span>{fmt(c.netto)} €</span>
+                            </div>
+                            {#if c.shipping > 0}
+                                <div class="calc-row">
+                                    <span>Versandkosten netto</span>
+                                    <span>{fmt(c.shipping)} €</span>
+                                </div>
+                                <div class="calc-row">
+                                    <span>Nettosumme</span>
+                                    <span>{fmt(c.nettosumme)} €</span>
+                                </div>
+                            {/if}
+                            <div class="calc-row">
+                                <span>MwSt. {c.vatRate}%</span>
+                                <span>{fmt(c.mwst)} €</span>
+                            </div>
+                            <div class="calc-row calc-total">
+                                <span>Gesamtbetrag</span>
+                                <span>{fmt(c.gesamt)} €</span>
+                            </div>
+                        </div>
+                    {/if}
                     <div class="detail-row email-row">
                         <strong>📧 E-Mail Adresse:</strong>
                         <span class="email">{getInvoiceEmail()}</span>
@@ -184,6 +220,31 @@
         margin-top: var(--spacing-sm);
         padding-top: var(--spacing-md);
         border-top: 2px solid var(--color-info);
+    }
+
+    .calc-table {
+        margin: var(--spacing-sm) 0;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+    }
+
+    .calc-row {
+        display: flex;
+        justify-content: space-between;
+        padding: var(--spacing-sm) var(--spacing-md);
+        border-bottom: 1px solid var(--color-gray-200);
+        font-size: var(--font-size-sm);
+    }
+
+    .calc-row:last-child {
+        border-bottom: none;
+    }
+
+    .calc-total {
+        background: var(--color-gray-100);
+        font-weight: 700;
+        font-size: var(--font-size-base);
     }
 
     .email {
