@@ -105,9 +105,9 @@ export async function POST({ request }) {
             }, { status: 500 });
         }
 
-        const { job, customer, userId, invoiceEmail, customerName, amount, vatRate } = await request.json();
+        const { job, customer, userId, invoiceEmail, customerName, amount, vatRate, previewOnly } = await request.json();
 
-        if (!job || !customer || !userId) {
+        if (!job || !customer || (!userId && !previewOnly)) {
             return json({ error: 'Fehlende erforderliche Daten' }, { status: 400 });
         }
 
@@ -155,6 +155,15 @@ export async function POST({ request }) {
         const invoiceFileName = `Rechnung_${currentInvoiceNumber}_${job.jobname.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
         
         console.log('PDF erstellt:', invoiceFileName);
+
+        // Nur Vorschau: PDF zurückgeben ohne Rechnungsnummer zu erhöhen oder E-Mail zu senden
+        if (previewOnly) {
+            return json({
+                pdfBase64: pdfBuffer.toString('base64'),
+                invoiceNumber: currentInvoiceNumber,
+                fileName: invoiceFileName
+            });
+        }
 
         // Rechnungsnummer in Firebase erhöhen (sicherstellen, dass es eine Zahl ist)
         const nextInvoiceNumber = currentInvoiceNumber + 1;
