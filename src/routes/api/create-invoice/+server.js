@@ -184,9 +184,13 @@ export async function POST({ request }) {
                 auth: { user: smtpUser, pass: smtpPass }
             });
 
-            const displayAmount = typeof amount === 'string' ? amount
-                : Number(amount).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const displayVat = vatRate || job.vatRate || 19;
+            const displayVat = Number(vatRate || job.vatRate || 19);
+            const emailNetto = parseFloat((Number(job.amount) || 0).toFixed(2));
+            const emailShipping = parseFloat((Number(job.shippingCosts) || 0).toFixed(2));
+            const emailNettosumme = parseFloat((emailNetto + emailShipping).toFixed(2));
+            const emailMwst = parseFloat((emailNettosumme * displayVat / 100).toFixed(2));
+            const emailGesamt = parseFloat((emailNettosumme + emailMwst).toFixed(2));
+            const displayAmount = emailGesamt.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const salutationName = `${customer.firstName || ''} ${customer.lastName || ''}`.trim();
             const subject = `Rechnung Nr. ${currentInvoiceNumber} - ${job.jobname}`;
 
