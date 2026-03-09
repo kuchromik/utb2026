@@ -173,6 +173,21 @@ export async function POST({ request }) {
 
         console.log('Rechnungsnummer erhöht von', currentInvoiceNumber, 'auf', nextInvoiceNumber);
 
+        // PDF in Firebase Storage speichern (Unterordner nach Kalenderjahr)
+        try {
+            const year = new Date().getFullYear().toString();
+            const storagePath = `invoices/${year}/${invoiceFileName}`;
+            const bucket = storage.bucket();
+            const file = bucket.file(storagePath);
+            await file.save(pdfBuffer, {
+                metadata: { contentType: 'application/pdf' }
+            });
+            console.log('PDF in Firebase Storage gespeichert:', storagePath);
+        } catch (storageError) {
+            // Fehler beim Storage-Upload nicht den E-Mail-Versand blockieren
+            console.error('PDF konnte nicht in Firebase Storage gespeichert werden:', storageError);
+        }
+
         // E-Mail direkt serverseitig versenden (kein PDF-Roundtrip durch den Browser)
         if (invoiceEmail) {
             const smtpHost = env.SMTP_HOST || 'smtp.gmail.com';
