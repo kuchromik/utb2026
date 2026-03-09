@@ -159,7 +159,7 @@ Kai-Uwe Chromik
         const info = await transporter.sendMail({
             from: smtpFrom,
             to: customerEmail,
-            bcc: 'versandlog@online.de',
+            bcc: 'datachecklog@online.de',
             subject: subject,
             text: text,
             html: html
