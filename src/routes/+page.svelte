@@ -859,6 +859,7 @@
             amount: normalizeAmount(jobData.amount),
             producer: jobData.producer,
             vatRate: jobData.vatRate,
+            ...(jobData.contactEmail ? { contactEmail: jobData.contactEmail } : {}),
             paper_ready: false,
             plates_ready: false,
             print_ready: false,
@@ -942,7 +943,8 @@
                 city: customerData.city.trim(),
                 countryCode: customerData.countryCode.trim().toUpperCase(),
                 email: customerData.email.trim().toLowerCase(),
-                ...(customerData.invoiceMail ? { invoiceMail: customerData.invoiceMail.trim().toLowerCase() } : {})
+                ...(customerData.invoiceMail ? { invoiceMail: customerData.invoiceMail.trim().toLowerCase() } : {}),
+                ...(customerData.contacts?.length ? { contacts: customerData.contacts } : {})
             });
         } catch (error) {
             console.error("Error adding customer:", error);
@@ -971,7 +973,8 @@
                 city: customerData.city.trim(),
                 countryCode: customerData.countryCode.trim().toUpperCase(),
                 email: customerData.email.trim().toLowerCase(),
-                ...(customerData.invoiceMail ? { invoiceMail: customerData.invoiceMail.trim().toLowerCase() } : { invoiceMail: deleteField() })
+                ...(customerData.invoiceMail ? { invoiceMail: customerData.invoiceMail.trim().toLowerCase() } : { invoiceMail: deleteField() }),
+                ...(customerData.contacts?.length ? { contacts: customerData.contacts } : { contacts: deleteField() })
             });
 
             if (previousLabel !== nextLabel) {
@@ -1091,7 +1094,8 @@
                 details: changedData.details,
                 amount: normalizeAmount(changedData.amount),
                 producer: changedData.producer,
-                vatRate: changedData.vatRate
+                vatRate: changedData.vatRate,
+                ...(changedData.contactEmail ? { contactEmail: changedData.contactEmail } : { contactEmail: deleteField() })
             });
             stopChangeMode();
         } catch (error) {
@@ -1126,7 +1130,8 @@
                 details: changedData.details,
                 amount: normalizeAmount(changedData.amount),
                 producer: changedData.producer,
-                vatRate: changedData.vatRate
+                vatRate: changedData.vatRate,
+                ...(changedData.contactEmail ? { contactEmail: changedData.contactEmail } : { contactEmail: deleteField() })
             });
             stopFinishedChangeMode();
         } catch (error) {

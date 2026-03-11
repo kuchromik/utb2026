@@ -20,6 +20,8 @@
     let countryCode = $state('DE');
     let email = $state('');
     let invoiceMail = $state('');
+    /** @type {import('$lib/types').Contact[]} */
+    let additionalContacts = $state([]);
     let error = $state('');
     /** @type {HTMLInputElement | undefined} */
     let activeInput = $state(undefined);
@@ -35,6 +37,7 @@
             countryCode = customer.countryCode ?? 'DE';
             email = customer.email ?? '';
             invoiceMail = customer.invoiceMail ?? '';
+            additionalContacts = customer.contacts ? customer.contacts.map(c => ({ ...c })) : [];
             error = '';
 
             tick().then(() => activeInput?.focus());
@@ -89,7 +92,40 @@
             return false;
         }
 
+        if (invoiceMail.trim() && !isValidEmail(invoiceMail.trim())) {
+            error = 'Bitte gültige abweichende Rechnungs-E-Mail eingeben';
+            return false;
+        }
+
+        for (let i = 0; i < additionalContacts.length; i++) {
+            const c = additionalContacts[i];
+            if (c.email.trim() && !isValidEmail(c.email.trim())) {
+                error = `Bitte gültige E-Mail für Ansprechpartner ${i + 1} eingeben`;
+                return false;
+            }
+        }
+
         return true;
+    }
+
+    function buildContacts() {
+        return additionalContacts
+            .filter(c => c.firstName.trim() || c.lastName.trim() || c.email.trim())
+            .map(c => /** @type {import('$lib/types').Contact} */ ({
+                firstName: c.firstName.trim(),
+                lastName: c.lastName.trim(),
+                email: c.email.trim().toLowerCase(),
+                ...(c.invoiceMail?.trim() ? { invoiceMail: c.invoiceMail.trim().toLowerCase() } : {})
+            }));
+    }
+
+    function addContact() {
+        additionalContacts = [...additionalContacts, { firstName: '', lastName: '', email: '', invoiceMail: '' }];
+    }
+
+    /** @param {number} index */
+    function removeContact(index) {
+        additionalContacts = additionalContacts.filter((_, i) => i !== index);
     }
 
     async function handleSave() {
@@ -99,6 +135,7 @@
 
         try {
             if (onComplete) {
+                const validContacts = buildContacts();
                 await onComplete({
                     ...customer,
                     firstName: firstName.trim(),
@@ -109,7 +146,8 @@
                     city: city.trim(),
                     countryCode: countryCode.trim().toUpperCase(),
                     email: email.trim().toLowerCase(),
-                    invoiceMail: invoiceMail.trim().toLowerCase() || undefined
+                    invoiceMail: invoiceMail.trim().toLowerCase() || undefined,
+                    contacts: validContacts.length > 0 ? validContacts : undefined
                 });
             }
             show = false;
@@ -197,6 +235,22 @@
                     <input id="edit-invoice-mail" type="email" bind:value={invoiceMail} placeholder="z.B. buchhaltung@firma.de" />
                     <p class="hint">Wenn angegeben, werden Rechnungen immer an diese Adresse versendet (statt an die Haupt-E-Mail).</p>
                 </div>
+            </div>
+
+            <div class="contacts-section">
+                <div class="contacts-header">
+                    <span class="contacts-title">Weitere Ansprechpartner (optional)</span>
+                    <button type="button" class="btn-add-contact" onclick={addContact}>+ Hinzufügen</button>
+                </div>
+                {#each additionalContacts as _, i}
+                    <div class="contact-row">
+                        <input type="text" bind:value={additionalContacts[i].firstName} placeholder="Vorname" />
+                        <input type="text" bind:value={additionalContacts[i].lastName} placeholder="Nachname" />
+                        <input type="email" bind:value={additionalContacts[i].email} placeholder="E-Mail" />
+                        <input type="email" bind:value={additionalContacts[i].invoiceMail} placeholder="Rechnungs-E-Mail (opt.)" />
+                        <button type="button" class="btn-remove-contact" onclick={() => removeContact(i)}>✕</button>
+                    </div>
+                {/each}
             </div>
 
             {#if error}
@@ -367,5 +421,66 @@
         background: linear-gradient(135deg, #5568d3 0%, #6a4190 100%);
         transform: translateY(-1px);
         box-shadow: var(--shadow-md);
+    }
+
+    .contacts-section {
+        margin-top: var(--spacing-lg);
+        border-top: 1px solid var(--color-gray-200);
+        padding-top: var(--spacing-md);
+    }
+
+    .contacts-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .contacts-title {
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        color: var(--color-gray-600);
+    }
+
+    .btn-add-contact {
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        padding: var(--spacing-xs) var(--spacing-md);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+    }
+
+    .btn-add-contact:hover {
+        opacity: 0.85;
+    }
+
+    .contact-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr auto;
+        gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-sm);
+        align-items: center;
+    }
+
+    .btn-remove-contact {
+        background: var(--color-danger);
+        color: white;
+        border: none;
+        width: 28px;
+        height: 28px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        font-size: var(--font-size-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .btn-remove-contact:hover {
+        opacity: 0.85;
     }
 </style>

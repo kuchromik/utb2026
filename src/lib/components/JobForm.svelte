@@ -15,6 +15,7 @@
     } = $props();
 
     let selectedCustomer = $state('');
+    let selectedContactEmail = $state('');
     let jobname = $state('');
     /** @type {number | string} */
     let quantity = $state('');
@@ -31,6 +32,17 @@
     function normalizeAmount(value) {
         const numericValue = Number(value);
         return Math.round((numericValue + Number.EPSILON) * 100) / 100;
+    }
+
+    /** @param {string} customerId
+     * @returns {{ label: string, email: string }[]}
+     */
+    function getContactOptions(customerId) {
+        const cust = customers.find(c => c.id === customerId);
+        if (!cust || !cust.contacts?.length) return [];
+        const primary = { label: `${cust.firstName} ${cust.lastName}`.trim() + ' (Hauptkontakt)', email: cust.email };
+        const extras = cust.contacts.map(c => ({ label: `${c.firstName} ${c.lastName}`.trim(), email: c.email }));
+        return [primary, ...extras];
     }
 
     function validateForm() {
@@ -92,7 +104,8 @@
                 details: details.trim(),
                 amount: normalizeAmount(amount),
                 producer,
-                vatRate: Number(vatRate)
+                vatRate: Number(vatRate),
+                ...(selectedContactEmail ? { contactEmail: selectedContactEmail } : {})
             });
             
             // Reset form
@@ -119,6 +132,9 @@
         if (selectedCustomer === "Neuer Kunde") {
             onNewCustomer();
             selectedCustomer = '';
+            selectedContactEmail = '';
+        } else {
+            selectedContactEmail = '';
         }
     }
 
@@ -174,6 +190,15 @@
                 {/each}
             </select>
             <p class="customer-hint">Für „Kunde bearbeiten“ bitte zuerst einen bestehenden Kunden auswählen.</p>
+            {#if selectedCustomer && getContactOptions(selectedCustomer).length > 0}
+                <label class="field-label" style="margin-top: var(--spacing-xs);" for="job-contact">Ansprechpartner</label>
+                <select id="job-contact" bind:value={selectedContactEmail} disabled={loading}>
+                    <option value="">Hauptkontakt</option>
+                    {#each getContactOptions(selectedCustomer) as opt}
+                        <option value={opt.email}>{opt.label}</option>
+                    {/each}
+                </select>
+            {/if}
         </div>
 
         <div class="field">

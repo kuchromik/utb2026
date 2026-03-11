@@ -18,6 +18,7 @@
     } = $props();
 
     let customer = $state(job.customerId || job.customer);
+    let selectedContactEmail = $state(job.contactEmail ?? '');
     let jobname = $state(job.jobname);
     let quantity = $state(job.quantity);
     let details = $state(job.details);
@@ -31,6 +32,17 @@
     function normalizeAmount(value) {
         const numericValue = Number(value);
         return Math.round((numericValue + Number.EPSILON) * 100) / 100;
+    }
+
+    /** @param {string} customerId
+     * @returns {{ label: string, email: string }[]}
+     */
+    function getContactOptions(customerId) {
+        const cust = customers.find(c => c.id === customerId);
+        if (!cust || !cust.contacts?.length) return [];
+        const primary = { label: `${cust.firstName} ${cust.lastName}`.trim() + ' (Hauptkontakt)', email: cust.email };
+        const extras = cust.contacts.map(c => ({ label: `${c.firstName} ${c.lastName}`.trim(), email: c.email }));
+        return [primary, ...extras];
     }
 
     function validateForm() {
@@ -92,7 +104,8 @@
                 details: details.trim(),
                 amount: normalizeAmount(amount),
                 producer,
-                vatRate: Number(vatRate)
+                vatRate: Number(vatRate),
+                ...(selectedContactEmail ? { contactEmail: selectedContactEmail } : {})
             });
         } catch (err) {
             error = `Fehler beim Speichern: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`;
@@ -105,6 +118,9 @@
         if (customer === "Neuer Kunde") {
             onNewCustomer();
             customer = job.customerId || job.customer;
+            selectedContactEmail = '';
+        } else {
+            selectedContactEmail = '';
         }
     }
 
@@ -159,6 +175,15 @@
             {/each}
         </select>
         <p class="customer-hint">Für „Kunde bearbeiten“ bitte zuerst einen bestehenden Kunden auswählen.</p>
+        {#if customer && getContactOptions(customer).length > 0}
+            <label class="field-label" style="margin-top: var(--spacing-xs);" for="edit-job-contact">Ansprechpartner</label>
+            <select id="edit-job-contact" bind:value={selectedContactEmail} disabled={loading}>
+                <option value="">Hauptkontakt</option>
+                {#each getContactOptions(customer) as opt}
+                    <option value={opt.email}>{opt.label}</option>
+                {/each}
+            </select>
+        {/if}
     </div>
 
     <div class="field">

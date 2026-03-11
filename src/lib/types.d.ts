@@ -1,3 +1,10 @@
+export type Contact = {
+    firstName: string;
+    lastName: string;
+    email: string;
+    invoiceMail?: string;
+};
+
 export type Customer = {
     id?: string;
     firstName: string;
@@ -11,6 +18,7 @@ export type Customer = {
     countryCode: string;
     email: string;
     invoiceMail?: string;
+    contacts?: Contact[];
     companyName?: string;
     companyName2?: string;
     address1?: string;
@@ -43,6 +51,7 @@ export type JobFormData = {
     amount: number;
     producer: string;
     vatRate: number;
+    contactEmail?: string;
 };
 
 export type Job = JobFormData & {
