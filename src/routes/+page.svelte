@@ -204,6 +204,10 @@
             normalized.invoiceMail = invoiceMail;
         }
 
+        if (Array.isArray(customerData.contacts) && customerData.contacts.length > 0) {
+            normalized.contacts = /** @type {import('$lib/types').Contact[]} */ (customerData.contacts);
+        }
+
         return normalized;
     }
 
