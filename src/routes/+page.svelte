@@ -74,6 +74,10 @@
     /** @type {Job | null} */
     let jobForDataChecked = $state(null);
     let showDataCheckedModal = $state(false);
+    let showPaidArchiveModal = $state(false);
+    let paidArchiveMessage = $state('');
+    let showFinishedDeleteModal = $state(false);
+    let finishedDeleteMessage = $state('');
     
     // Edit mode
     /** @type {Job | null} */
@@ -867,6 +871,19 @@
         showArchiveModal = true;
     }
 
+    /** @param {string} jobId */
+    function confirmPaidArchiveJob(jobId) {
+        const job = finishedJobs.find(j => j.id === jobId);
+        if (!job) return;
+        const net = Number(job.amount) || 0;
+        const vatRate = job.vatRate ?? 19;
+        const total = net * (1 + vatRate / 100);
+        const totalFormatted = total.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        paidArchiveMessage = `Hat der Kunde den Betrag von ${totalFormatted} Euro (inkl. ${vatRate}% MwSt.) bezahlt?\n\nDer Auftrag wird anschließend ins Archiv verschoben.`;
+        archiveJobId = jobId;
+        showPaidArchiveModal = true;
+    }
+
     async function archiveJob() {
         try {
             const jobRef = doc(db, "Jobs", archiveJobId);
@@ -882,6 +899,18 @@
     function confirmDeleteJob(jobId) {
         deleteJobId = jobId;
         showDeleteModal = true;
+    }
+
+    /** @param {string} jobId */
+    function confirmFinishedDeleteJob(jobId) {
+        const job = finishedJobs.find(j => j.id === jobId);
+        deleteJobId = jobId;
+        if (job?.invoice_ready) {
+            finishedDeleteMessage = `Achtung: Für diesen Auftrag wurde bereits eine Rechnung an den Kunden versendet!\n\nMöchten Sie den Auftrag trotzdem endgültig löschen? Diese Aktion kann nicht rückgängig gemacht werden.`;
+        } else {
+            finishedDeleteMessage = 'Möchten Sie diesen fertigen Auftrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.';
+        }
+        showFinishedDeleteModal = true;
     }
 
     async function deleteJob() {
@@ -1155,8 +1184,8 @@
                         {job}
                         {index}
                         onToggleReady={toggleSomethingIsReady}
-                        onArchive={confirmArchiveJob}
-                        onDelete={confirmDeleteJob}
+                        onArchive={confirmPaidArchiveJob}
+                        onDelete={confirmFinishedDeleteJob}
                     />
                 </li>
             {/each}
@@ -1210,6 +1239,24 @@
     confirmText="Archivieren"
     cancelText="Abbrechen"
     onConfirm={archiveJob}
+/>
+
+<Modal
+    bind:show={showPaidArchiveModal}
+    title="Bezahlt & archivieren"
+    message={paidArchiveMessage}
+    confirmText="Ja, bezahlt – Archivieren"
+    cancelText="Abbrechen"
+    onConfirm={archiveJob}
+/>
+
+<Modal
+    bind:show={showFinishedDeleteModal}
+    title="Auftrag löschen"
+    message={finishedDeleteMessage}
+    confirmText="Trotzdem löschen"
+    cancelText="Abbrechen"
+    onConfirm={deleteJob}
 />
 
 <NewCustomerModal 

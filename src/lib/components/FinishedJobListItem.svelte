@@ -149,14 +149,14 @@
     </div>
     
     <button 
-        class="btn-invoice"
+        class="btn-invoice {job.invoice_ready ? 'btn-invoice-done' : ''}"
         onclick={() => onToggleReady("invoice", job.id, Boolean(job.invoice_ready))}
     >
         {job.invoice_ready ? '✓ Rechnung' : 'Rechnung'}
     </button>
     
     <button onclick={() => onArchive(job.id)}>
-        Archiv
+        Bezahlt?
     </button>
     <button onclick={() => onDelete(job.id)}>
         Löschen
@@ -322,6 +322,14 @@
 
     .btn-invoice:hover {
         background: var(--color-warning-hover);
+    }
+
+    .btn-invoice-done {
+        background: #10b981 !important;
+    }
+
+    .btn-invoice-done:hover {
+        background: #059669 !important;
     }
 
     button:nth-of-type(2) {
