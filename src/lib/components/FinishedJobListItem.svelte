@@ -8,11 +8,12 @@
     /** @typedef {import('$lib/types').JobIdHandler} JobIdHandler */
     /** @typedef {import('$lib/types').ShipmentAddress} ShipmentAddress */
 
-    /** @type {{ job: Job, index: number, onToggleReady: JobToggleReadyHandler, onArchive: JobIdHandler, onDelete: JobIdHandler }} */
+    /** @type {{ job: Job, index: number, onToggleReady: JobToggleReadyHandler, onEdit: JobEditHandler, onArchive: JobIdHandler, onDelete: JobIdHandler }} */
     let { 
         job,
         index,
         onToggleReady,
+        onEdit,
         onArchive,
         onDelete
     } = $props();
@@ -154,7 +155,11 @@
     >
         {job.invoice_ready ? '✓ Rechnung' : 'Rechnung'}
     </button>
-    
+
+    <button class="btn-edit" onclick={() => onEdit(job, index)}>
+        B
+    </button>
+
     <button onclick={() => onArchive(job.id)}>
         Bezahlt?
     </button>
@@ -174,7 +179,7 @@
             minmax(150px, 1fr)    /* Details */
             150px          /* Betrag + MwSt. */
             80px           /* Produzent */
-            88px 88px 88px;  /* 3 Buttons: Rechnung, Archiv, Löschen */
+            88px 44px 88px 88px;  /* 4 Buttons: Rechnung, B, Bezahlt?, Löschen */
         gap: 8px;
         align-items: center;
         background: var(--color-white);
@@ -313,6 +318,15 @@
         font-weight: 600;
         white-space: nowrap;
         height: 32px;
+    }
+
+    .btn-edit {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    .btn-edit:hover {
+        background: var(--color-primary-hover, #4f46e5);
     }
 
     .btn-invoice {

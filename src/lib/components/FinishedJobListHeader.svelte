@@ -9,7 +9,7 @@
     <div class="header-item">Det.</div>
     <div class="header-item">Betrag</div>
     <div class="header-item">Prod.</div>
-    <div class="header-item" style="grid-column: span 3; text-align: center;">Aktion</div>
+    <div class="header-item" style="grid-column: span 4; text-align: center;">Aktion</div>
 </div>
 
 <style>
@@ -23,7 +23,7 @@
             minmax(150px, 1fr)    /* Details */
             150px          /* Betrag */
             80px           /* Produzent */
-            88px 88px 88px;  /* 3 Buttons */
+            88px 44px 88px 88px;  /* 4 Buttons */
         gap: 8px;
         align-items: center;
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);

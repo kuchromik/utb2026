@@ -79,11 +79,17 @@
     let showFinishedDeleteModal = $state(false);
     let finishedDeleteMessage = $state('');
     
-    // Edit mode
+    // Edit mode (aktive Aufträge)
     /** @type {Job | null} */
     let jobToEdit = $state(null);
     let jobToEditIndex = $state(0);
     let editMode = $state(false);
+
+    // Edit mode (fertige Aufträge)
+    /** @type {Job | null} */
+    let finishedJobToEdit = $state(null);
+    let finishedJobToEditIndex = $state(0);
+    let finishedEditMode = $state(false);
     
     // Archive customer selection
     let archiveCustomer = $state('');
@@ -1099,6 +1105,41 @@
         jobToEdit = null;
         jobToEditIndex = 0;
     }
+
+    /** @param {Job} job @param {number} index */
+    function openFinishedEditMode(job, index) {
+        finishedJobToEdit = job;
+        finishedJobToEditIndex = index;
+        finishedEditMode = true;
+    }
+
+    /** @param {import('$lib/types').JobFormData} changedData */
+    async function saveChangedFinishedJob(changedData) {
+        if (!finishedJobToEdit) return;
+        try {
+            const jobRef = doc(db, "Jobs", finishedJobToEdit.id);
+            await updateDoc(jobRef, {
+                customerId: changedData.customerId,
+                customer: changedData.customer,
+                jobname: changedData.jobname,
+                quantity: changedData.quantity,
+                details: changedData.details,
+                amount: normalizeAmount(changedData.amount),
+                producer: changedData.producer,
+                vatRate: changedData.vatRate
+            });
+            stopFinishedChangeMode();
+        } catch (error) {
+            console.error("Error updating finished job:", error);
+            throw error;
+        }
+    }
+
+    function stopFinishedChangeMode() {
+        finishedEditMode = false;
+        finishedJobToEdit = null;
+        finishedJobToEditIndex = 0;
+    }
 </script>
 
 <main>
@@ -1184,9 +1225,22 @@
                         {job}
                         {index}
                         onToggleReady={toggleSomethingIsReady}
+                        onEdit={openFinishedEditMode}
                         onArchive={confirmPaidArchiveJob}
                         onDelete={confirmFinishedDeleteJob}
                     />
+
+                    {#if finishedEditMode && finishedJobToEdit && finishedJobToEditIndex === index}
+                        <JobEditForm 
+                            job={finishedJobToEdit}
+                            {customers}
+                            {vatRates}
+                            onSave={saveChangedFinishedJob}
+                            onCancel={stopFinishedChangeMode}
+                            onNewCustomer={() => { showNewCustomerModal = true; }}
+                            onEditCustomer={openEditCustomerModal}
+                        />
+                    {/if}
                 </li>
             {/each}
         </ul>
