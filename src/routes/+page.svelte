@@ -1113,7 +1113,7 @@
             </button>
         </div>
         <ul>
-            {#each jobs as job, index}
+            {#each jobs as job, index (job.id)}
                 <li>
                     <JobListItem 
                         {job}
@@ -1149,7 +1149,7 @@
         </div>
         <FinishedJobListHeader />
         <ul>
-            {#each finishedJobs as job, index}
+            {#each finishedJobs as job, index (job.id)}
                 <li>
                     <FinishedJobListItem 
                         {job}
@@ -1176,7 +1176,7 @@
             />
         </div>
         <ul>
-            {#each getFilteredArchivJobs() as job, index}
+            {#each getFilteredArchivJobs() as job, index (job.id)}
                 <li>
                     <JobListItem 
                         {job}
