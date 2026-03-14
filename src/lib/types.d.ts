@@ -18,6 +18,7 @@ export type Customer = {
     countryCode: string;
     email: string;
     invoiceMail?: string;
+    single?: boolean;
     contacts?: Contact[];
     companyName?: string;
     companyName2?: string;
