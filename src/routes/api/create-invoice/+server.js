@@ -341,8 +341,8 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     // Prüfe ob Job eine abweichende Rechnungsadresse hat
     let customerName, customerAddress;
     
-    // Personenzeile wenn Job als "single" (Einzelperson) markiert ist
-    const isSingle = job.single === true || job.single === 'true';
+    // Personenzeile wenn Kunde als "single" (Einzelperson) markiert ist
+    const isSingle = customer.single === true || customer.single === 'true';
     const personLine = isSingle ? `${customer.firstName || ''} ${customer.lastName || ''}`.trim() : '';
 
     if (job.billingAddress) {
