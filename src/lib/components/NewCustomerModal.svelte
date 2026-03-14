@@ -18,6 +18,7 @@
     let countryCode = $state('DE');
     let email = $state('');
     let invoiceMail = $state('');
+    let single = $state(false);
     /** @type {import('$lib/types').Contact[]} */
     let additionalContacts = $state([]);
     let error = $state('');
@@ -132,6 +133,7 @@
                     countryCode: countryCode.trim().toUpperCase(),
                     email: email.trim().toLowerCase(),
                     ...(invoiceMail.trim() ? { invoiceMail: invoiceMail.trim().toLowerCase() } : {}),
+                    single,
                     ...(validContacts.length > 0 ? { contacts: validContacts } : {})
                 });
             }
@@ -171,6 +173,7 @@
         countryCode = 'DE';
         email = '';
         invoiceMail = '';
+        single = false;
         additionalContacts = [];
         error = '';
     }
@@ -279,6 +282,13 @@
                         bind:value={invoiceMail}
                         placeholder="rechnung@firma.de"
                     />
+                </div>
+
+                <div class="full-width checkbox-row">
+                    <label class="checkbox-label">
+                        <input id="single" type="checkbox" bind:checked={single} />
+                        Einzelunternehmen?
+                    </label>
                 </div>
             </div>
 
@@ -397,8 +407,23 @@
         grid-column: 1 / -1;
     }
 
-    .modal input:hover {
-        border-color: var(--color-gray-400);
+    .checkbox-row {
+        display: flex;
+        align-items: center;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+        width: 1.1rem;
+        height: 1.1rem;
+        cursor: pointer;
     }
 
     .modal input:focus {

@@ -20,6 +20,7 @@
     let countryCode = $state('DE');
     let email = $state('');
     let invoiceMail = $state('');
+    let single = $state(false);
     /** @type {import('$lib/types').Contact[]} */
     let additionalContacts = $state([]);
     let error = $state('');
@@ -37,6 +38,7 @@
             countryCode = customer.countryCode ?? 'DE';
             email = customer.email ?? '';
             invoiceMail = customer.invoiceMail ?? '';
+            single = customer.single ?? false;
             additionalContacts = customer.contacts ? customer.contacts.map(c => ({ ...c })) : [];
             error = '';
 
@@ -147,6 +149,7 @@
                     countryCode: countryCode.trim().toUpperCase(),
                     email: email.trim().toLowerCase(),
                     invoiceMail: invoiceMail.trim().toLowerCase() || undefined,
+                    single,
                     contacts: validContacts.length > 0 ? validContacts : undefined
                 });
             }
@@ -234,6 +237,13 @@
                     <label for="edit-invoice-mail">Abweichende Rechnungs-E-Mail (optional)</label>
                     <input id="edit-invoice-mail" type="email" bind:value={invoiceMail} placeholder="z.B. buchhaltung@firma.de" />
                     <p class="hint">Wenn angegeben, werden Rechnungen immer an diese Adresse versendet (statt an die Haupt-E-Mail).</p>
+                </div>
+
+                <div class="full-width checkbox-row">
+                    <label class="checkbox-label">
+                        <input id="edit-single" type="checkbox" bind:checked={single} />
+                        Einzelunternehmen?
+                    </label>
                 </div>
             </div>
 
@@ -352,8 +362,23 @@
         grid-column: 1 / -1;
     }
 
-    .modal input:hover {
-        border-color: var(--color-gray-400);
+    .checkbox-row {
+        display: flex;
+        align-items: center;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+        width: 1.1rem;
+        height: 1.1rem;
+        cursor: pointer;
     }
 
     .modal input:focus {
