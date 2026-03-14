@@ -341,11 +341,16 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     // Prüfe ob Job eine abweichende Rechnungsadresse hat
     let customerName, customerAddress;
     
+    // Personenzeile wenn Job als "single" (Einzelperson) markiert ist
+    const isSingle = job.single === true || job.single === 'true';
+    const personLine = isSingle ? `${customer.firstName || ''} ${customer.lastName || ''}`.trim() : '';
+
     if (job.billingAddress) {
         // Verwende die job-spezifische Rechnungsadresse
         customerName = String(job.billingAddress.firma || '');
         customerAddress = [
             customerName,
+            ...(personLine ? [personLine] : []),
             String(job.billingAddress.strasse || ''),
             `${String(job.billingAddress.plz || '')} ${String(job.billingAddress.ort || '')}`.trim(),
             String(job.billingAddress.land || '')
@@ -355,6 +360,7 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
         customerName = String(customer.company || `${customer.firstName || ''} ${customer.lastName || ''}`.trim());
         customerAddress = [
             customerName,
+            ...(personLine && customer.company ? [personLine] : []),
             String(customer.street || customer.address || ''),
             `${String(customer.zip || '')} ${String(customer.city || '')}`.trim(),
             String(customer.country || '')
@@ -446,6 +452,15 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
         }
     });
 
+    // Bankverbindung auswählen: 2. Konto für "Giraffe Werbeagentur GmbH"
+    const effectiveCompany = job.billingAddress
+        ? String(job.billingAddress.firma || '')
+        : String(customer.company || '');
+    const useSecondBank = effectiveCompany === 'Giraffe Werbeagentur GmbH';
+    const bankIban = useSecondBank ? (company.iban2 || company.iban || '') : (company.iban || '');
+    const bankBic  = useSecondBank ? (company.bic2  || company.bic  || '') : (company.bic  || '');
+    const bankName = useSecondBank ? (company.bank2 || company.bank || '') : (company.bank || '');
+
     // Zahlungsinformationen
     // @ts-ignore - lastAutoTable wird durch Plugin hinzugefügt
     yPos = doc.lastAutoTable.finalY + 15;
@@ -462,9 +477,9 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     
     const paymentInfo = [
         `Empfänger: ${company.owner || ''}`,
-        `IBAN: ${company.iban || ''}`,
-        `BIC: ${company.bic || ''}`,
-        `Bank: ${company.bank || ''}`,
+        `IBAN: ${bankIban}`,
+        `BIC: ${bankBic}`,
+        `Bank: ${bankName}`,
         '',
         `Zahlbar bis zum ${dueDateString}.`
     ];
@@ -483,9 +498,9 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
             '002',                                          // Version
             '1',                                            // Character Set (1 = UTF-8)
             'SCT',                                          // Identification (SEPA Credit Transfer)
-            company.bic || '',                              // BIC
-            company.owner || '',                             // Empfängername
-            company.iban || '',                             // IBAN
+            bankBic,                                        // BIC
+            company.owner || '',                            // Empfängername
+            bankIban,                                       // IBAN
             `EUR${grossAmount.toFixed(2)}`,                 // Betrag mit Währung
             '',                                             // Purpose (leer)
             '',                                             // Structured Reference (leer)
