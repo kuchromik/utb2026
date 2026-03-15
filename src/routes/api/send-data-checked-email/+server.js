@@ -9,11 +9,25 @@ import { env } from '$env/dynamic/private';
  */
 export async function POST({ request }) {
     try {
-        const { customerEmail, customerFirstName, customerLastName, jobname, toShip, shipDate } = await request.json();
+        const { customerEmail, customerFirstName, customerLastName, contactEmail, contacts, jobname, toShip, shipDate } = await request.json();
 
         // Validierung
         if (!customerEmail || !customerFirstName || !customerLastName || !jobname || !shipDate) {
             return json({ error: 'Fehlende erforderliche Felder' }, { status: 400 });
+        }
+
+        // Abweichenden Ansprechpartner per contactEmail in contacts suchen
+        let recipientEmail = customerEmail;
+        let recipientFirstName = customerFirstName;
+        let recipientLastName = customerLastName;
+
+        if (contactEmail && Array.isArray(contacts) && contacts.length > 0) {
+            const contact = contacts.find(c => c.email === contactEmail);
+            if (contact) {
+                recipientEmail = contact.email;
+                recipientFirstName = contact.firstName;
+                recipientLastName = contact.lastName;
+            }
         }
 
         // SMTP-Konfiguration aus Umgebungsvariablen
@@ -51,7 +65,7 @@ export async function POST({ request }) {
         if (toShip) {
             subject = `Ihre Druckdaten sind geprüft – Versand am ${shipDateFormatted} – ${jobname}`;
             text = `
-Hallo ${customerFirstName} ${customerLastName},
+Hallo ${recipientFirstName} ${recipientLastName},
 
 wir haben Ihre Druckdaten für den Auftrag „${jobname}" geprüft und alles ist in Ordnung.
 
@@ -83,7 +97,7 @@ Kai-Uwe Chromik
             <h2>✅ Druckdaten geprüft</h2>
         </div>
         <div class="content">
-            <p>Hallo <strong>${customerFirstName} ${customerLastName}</strong>,</p>
+            <p>Hallo <strong>${recipientFirstName} ${recipientLastName}</strong>,</p>
             <p>wir haben Ihre Druckdaten für den Auftrag „<strong>${jobname}</strong>" geprüft und alles ist in Ordnung.</p>
             <div class="date-box">
                 <strong>📦 Voraussichtlicher Versand:</strong> ${shipDateFormatted}
@@ -100,7 +114,7 @@ Kai-Uwe Chromik
         } else {
             subject = `Ihre Druckdaten sind geprüft – Abholung ab ${shipDateFormatted} – ${jobname}`;
             text = `
-Hallo ${customerFirstName} ${customerLastName},
+Hallo ${recipientFirstName} ${recipientLastName},
 
 wir haben Ihre Druckdaten für den Auftrag „${jobname}" geprüft und alles ist in Ordnung.
 
@@ -136,7 +150,7 @@ Kai-Uwe Chromik
             <h2>✅ Druckdaten geprüft</h2>
         </div>
         <div class="content">
-            <p>Hallo <strong>${customerFirstName} ${customerLastName}</strong>,</p>
+            <p>Hallo <strong>${recipientFirstName} ${recipientLastName}</strong>,</p>
             <p>wir haben Ihre Druckdaten für den Auftrag „<strong>${jobname}</strong>" geprüft und alles ist in Ordnung.</p>
             <div class="date-box">
                 <strong>🏪 Abholbereit ab:</strong> ${shipDateFormatted}
@@ -158,7 +172,7 @@ Kai-Uwe Chromik
 
         const info = await transporter.sendMail({
             from: smtpFrom,
-            to: customerEmail,
+            to: recipientEmail,
             bcc: 'datachecklog@online.de',
             subject: subject,
             text: text,

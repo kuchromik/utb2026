@@ -703,6 +703,8 @@
                         customerEmail: customer.email,
                         customerFirstName: customer.firstName,
                         customerLastName: customer.lastName,
+                        contactEmail: jobForDataChecked.contactEmail ?? null,
+                        contacts: customer.contacts ?? [],
                         jobname: jobForDataChecked.jobname,
                         toShip: Boolean(jobForDataChecked.toShip),
                         shipDate: shipDate
