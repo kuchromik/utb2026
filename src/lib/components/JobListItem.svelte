@@ -332,7 +332,7 @@
             125px          /* Kunde */
             200px          /* Jobname */
             75px           /* Menge */
-            minmax(100px, 1fr)    /* Details */
+            200px          /* Details */
             120px          /* Betrag + MwSt. */
             65px           /* Produzent */
             48px 48px 48px 48px 48px 48px  /* Checkboxen (6: Papier, Platten, Druck, Daten, Klar, Versand) */
@@ -564,7 +564,7 @@
             125px          /* Kunde */
             150px          /* Jobname */
             75px           /* Menge */
-            minmax(100px, 1fr)    /* Details */
+            150px          /* Details */
             120px          /* Betrag + MwSt. */
             90px           /* Produzent */
             100px;         /* Button */

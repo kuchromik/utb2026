@@ -1,4 +1,6 @@
 <script>
+    import DetailsEditModal from './DetailsEditModal.svelte';
+
     /** @typedef {import('$lib/types').Customer} Customer */
     /** @typedef {import('$lib/types').VatRate} VatRate */
     /** @typedef {import('$lib/types').JobSubmitHandler} JobSubmitHandler */
@@ -22,16 +24,28 @@
     let details = $state('');
     /** @type {number | string} */
     let amount = $state('');
+    /** @type {number | string} */
+    let shippingCosts = $state('');
     let producer = $state('');
     /** @type {number | string} */
-    let vatRate = $state('');
+    let vatRate = $state(19);
     let error = $state('');
     let loading = $state(false);
+    let showDetailsModal = $state(false);
 
     /** @param {number | string} value */
     function normalizeAmount(value) {
         const numericValue = Number(value);
         return Math.round((numericValue + Number.EPSILON) * 100) / 100;
+    }
+
+    /** @param {number | string} value
+     * @returns {string}
+     */
+    function formatCurrencyInput(value) {
+        if (value === '' || value === null || value === undefined) return '';
+        const n = parseFloat(String(value).replace(',', '.'));
+        return Number.isFinite(n) ? n.toFixed(2) : String(value);
     }
 
     /** @param {string} customerId
@@ -103,6 +117,7 @@
                 quantity: Number(quantity),
                 details: details.trim(),
                 amount: normalizeAmount(amount),
+                ...(shippingCosts !== '' ? { shippingCosts: normalizeAmount(shippingCosts) } : {}),
                 producer,
                 vatRate: Number(vatRate),
                 ...(selectedContactEmail ? { contactEmail: selectedContactEmail } : {})
@@ -123,8 +138,9 @@
         quantity = '';
         details = '';
         amount = '';
+        shippingCosts = '';
         producer = '';
-        vatRate = '';
+        vatRate = 19;
         error = '';
     }
 
@@ -227,16 +243,18 @@
         </div>
 
         <div class="field field-details">
-            <label class="field-label" for="job-details">Details</label>
-            <input
-                id="job-details"
-                class="broadField detailsField"
-                type="text"
-                placeholder="Details"
-                bind:value={details}
-                disabled={loading}
-                size="120"
-            />
+            <span class="field-label">Details</span>
+            <div class="details-preview">
+                <span class="details-preview-text" class:details-placeholder={!details}>
+                    {details || 'Details eingeben …'}
+                </span>
+                <button
+                    type="button"
+                    class="btn-details-edit"
+                    onclick={() => showDetailsModal = true}
+                    disabled={loading}
+                >✎ Bearbeiten</button>
+            </div>
         </div>
 
         <div class="field">
@@ -244,11 +262,25 @@
             <input
                 id="job-amount"
                 class="smallField"
-                type="number"
-                placeholder="Auftragswert (€)"
+                type="text"
+                inputmode="decimal"
+                placeholder="0,00"
                 bind:value={amount}
-                step="0.01"
-                min="0"
+                onblur={() => { amount = formatCurrencyInput(amount); }}
+                disabled={loading}
+            />
+        </div>
+
+        <div class="field">
+            <label class="field-label" for="job-shipping-costs">Versandkosten</label>
+            <input
+                id="job-shipping-costs"
+                class="smallField"
+                type="text"
+                inputmode="decimal"
+                placeholder="0,00"
+                bind:value={shippingCosts}
+                onblur={() => { shippingCosts = formatCurrencyInput(shippingCosts); }}
                 disabled={loading}
             />
         </div>
@@ -303,6 +335,12 @@
             Kunde bearbeiten
         </button>
     </div>
+
+    <DetailsEditModal
+        bind:show={showDetailsModal}
+        initialValue={details}
+        onSave={(v) => { details = v; }}
+    />
 </div>
 
 <style>
@@ -323,7 +361,7 @@
 
     .newJob {
         display: grid;
-        grid-template-columns: 200px 1fr 100px 2fr 100px 160px 100px 100px 100px;
+        grid-template-columns: 200px 1fr 100px 2fr 100px 160px 100px 120px 100px 100px;
         gap: var(--spacing-md);
         align-items: end;
         background: var(--color-success-light);
@@ -353,8 +391,47 @@
         grid-column: span 3;
     }
 
-    .detailsField {
-        width: 100%;
+    .details-preview {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-xs) var(--spacing-sm) var(--spacing-xs) var(--spacing-md);
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-md);
+        background: white;
+        min-height: 38px;
+    }
+
+    .details-preview-text {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: var(--font-size-sm);
+        color: var(--color-gray-700);
+    }
+
+    .details-placeholder {
+        color: var(--color-gray-400);
+    }
+
+    .btn-details-edit {
+        flex-shrink: 0;
+        padding: 2px 10px;
+        height: 26px;
+        font-size: var(--font-size-sm);
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        font-weight: normal;
+        white-space: nowrap;
+    }
+
+    .btn-details-edit:hover:not(:disabled) {
+        background: var(--color-gray-200);
+        border-color: var(--color-success);
     }
 
     .customer-hint {

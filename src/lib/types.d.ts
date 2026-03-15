@@ -50,6 +50,7 @@ export type JobFormData = {
     quantity: number;
     details: string;
     amount: number;
+    shippingCosts?: number;
     producer: string;
     vatRate: number;
     contactEmail?: string;
