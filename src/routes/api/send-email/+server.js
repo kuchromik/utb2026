@@ -9,7 +9,7 @@ import { env } from '$env/dynamic/private';
  */
 export async function POST({ request }) {
     try {
-        const { customerEmail, customerFirstName, customerLastName, jobname, toShip, trackingNumber } = await request.json();
+        const { customerEmail, customerFirstName, customerLastName, contactEmail, contacts, jobname, toShip, trackingNumber } = await request.json();
 
         // Validierung
         if (!customerEmail || !customerFirstName || !customerLastName || !jobname) {
@@ -18,6 +18,20 @@ export async function POST({ request }) {
 
         if (toShip && !trackingNumber) {
             return json({ error: 'Sendungsverfolgungsnummer ist erforderlich' }, { status: 400 });
+        }
+
+        // Abweichenden Ansprechpartner per contactEmail in contacts suchen
+        let recipientEmail = customerEmail;
+        let recipientFirstName = customerFirstName;
+        let recipientLastName = customerLastName;
+
+        if (contactEmail && Array.isArray(contacts) && contacts.length > 0) {
+            const contact = contacts.find(c => c.email === contactEmail);
+            if (contact) {
+                recipientEmail = contact.email;
+                recipientFirstName = contact.firstName;
+                recipientLastName = contact.lastName;
+            }
         }
 
         // SMTP-Konfiguration aus Umgebungsvariablen
@@ -53,7 +67,7 @@ export async function POST({ request }) {
         if (toShip) {
             subject = `Ihre Bestellung wurde versendet - ${jobname}`;
             text = `
-Hallo ${customerFirstName} ${customerLastName},
+Hallo ${recipientFirstName} ${recipientLastName},
 
 Ihre Bestellung "${jobname}" wurde erfolgreich versendet.
 
@@ -85,7 +99,7 @@ Kai-Uwe Chromik
             <h2>Ihre Bestellung wurde versendet</h2>
         </div>
         <div class="content">
-            <p>Hallo <strong>${customerFirstName} ${customerLastName}</strong>,</p>
+            <p>Hallo <strong>${recipientFirstName} ${recipientLastName}</strong>,</p>
             <p>Ihre Bestellung "<strong>${jobname}</strong>" wurde erfolgreich versendet.</p>
             <div class="tracking">
                 <strong>Link zur Sendungsverfolgung:</strong><br>
@@ -103,7 +117,7 @@ Kai-Uwe Chromik
         } else {
             subject = `Ihre Bestellung ist abholbereit - ${jobname}`;
             text = `
-Hallo ${customerFirstName} ${customerLastName},
+Hallo ${recipientFirstName} ${recipientLastName},
 
 Ihre Bestellung "${jobname}" ist fertiggestellt und kann während unserer Öffnungszeiten abgeholt werden.
 
@@ -136,7 +150,7 @@ Kai-Uwe Chromik
             <h2>Ihre Bestellung ist abholbereit</h2>
         </div>
         <div class="content">
-            <p>Hallo <strong>${customerFirstName} ${customerLastName}</strong>,</p>
+            <p>Hallo <strong>${recipientFirstName} ${recipientLastName}</strong>,</p>
             <p>Ihre Bestellung "<strong>${jobname}</strong>" ist fertiggestellt und kann während unserer Öffnungszeiten abgeholt werden.</p>
             <div class="hours">
                 <strong>Unsere Öffnungszeiten:</strong><br>
@@ -156,7 +170,7 @@ Kai-Uwe Chromik
         // E-Mail senden (mit BCC-Kopie an Versandlog)
         const info = await transporter.sendMail({
             from: smtpFrom,
-            to: customerEmail,
+            to: recipientEmail,
             bcc: 'versandlog@online.de',
             subject: subject,
             text: text,

@@ -639,6 +639,8 @@
                         customerEmail: customer.email,
                         customerFirstName: customer.firstName,
                         customerLastName: customer.lastName,
+                        contactEmail: jobForShippedConfirm.contactEmail ?? null,
+                        contacts: customer.contacts ?? [],
                         jobname: jobForShippedConfirm.jobname,
                         toShip: Boolean(jobForShippedConfirm.toShip),
                         trackingNumber: trackingNumber
@@ -1345,6 +1347,7 @@
 {#if showShippedConfirmModal && jobForShippedConfirm}
     <ShippedConfirmModal
         job={jobForShippedConfirm}
+        customer={customers.find(c => c.id === jobForShippedConfirm?.customerId) ?? customers.find(c => getCustomerLabel(c) === jobForShippedConfirm?.customer)}
         onConfirm={confirmShippedAndSendEmail}
         onConfirmWithoutEmail={confirmShippedWithoutEmail}
         onCancel={cancelShippedConfirm}
@@ -1362,6 +1365,7 @@
 {#if showDataCheckedModal && jobForDataChecked}
     <DataCheckedModal
         job={jobForDataChecked}
+        customer={customers.find(c => c.id === jobForDataChecked?.customerId) ?? customers.find(c => getCustomerLabel(c) === jobForDataChecked?.customer)}
         onConfirm={confirmDataCheckedAndSendEmail}
         onConfirmWithoutEmail={confirmDataCheckedWithoutEmail}
         onCancel={cancelDataCheckedModal}

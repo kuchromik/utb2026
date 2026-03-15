@@ -1,8 +1,15 @@
 <script>
-    /** @type {{ job: import('$lib/types').Job, onConfirm: (trackingNumber?: string) => void, onConfirmWithoutEmail: (trackingNumber?: string) => void, onCancel: () => void }} */
-    let { job, onConfirm, onConfirmWithoutEmail, onCancel } = $props();
+    /** @type {{ job: import('$lib/types').Job, customer?: import('$lib/types').Customer, onConfirm: (trackingNumber?: string) => void, onConfirmWithoutEmail: (trackingNumber?: string) => void, onCancel: () => void }} */
+    let { job, customer, onConfirm, onConfirmWithoutEmail, onCancel } = $props();
 
     let trackingNumber = $state('');
+
+    /** Returns the matching contact object if job.contactEmail points to one in customer.contacts */
+    const contact = $derived(
+        job.contactEmail && customer?.contacts?.length
+            ? (customer.contacts.find(c => c.email === job.contactEmail) ?? null)
+            : null
+    );
 
     function handleConfirm() {
         if (job.toShip && !trackingNumber.trim()) {
@@ -32,6 +39,13 @@
         <div class="info-section">
             <p><strong>Kunde:</strong> {job.customer}</p>
             <p><strong>Auftrag:</strong> {job.jobname}</p>
+            {#if contact}
+                <p class="contact-info">
+                    <strong>Ansprechpartner:</strong> {contact.firstName} {contact.lastName}
+                    <span class="contact-email">({contact.email})</span>
+                    <span class="contact-hint">← E-Mail geht an diesen Kontakt</span>
+                </p>
+            {/if}
         </div>
 
         {#if job.toShip}
@@ -129,6 +143,27 @@
     .info-section p {
         margin: var(--spacing-xs) 0;
         color: var(--color-gray-700);
+    }
+
+    .contact-info {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        border-top: 1px solid var(--color-gray-200);
+        padding-top: var(--spacing-xs);
+        margin-top: var(--spacing-xs);
+    }
+
+    .contact-email {
+        color: var(--color-gray-500);
+        font-size: var(--font-size-sm);
+    }
+
+    .contact-hint {
+        font-size: var(--font-size-xs);
+        color: var(--color-info);
+        font-style: italic;
     }
 
     .shipping-info,
