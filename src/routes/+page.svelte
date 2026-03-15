@@ -867,6 +867,7 @@
             amount: normalizeAmount(jobData.amount),
             producer: jobData.producer,
             vatRate: jobData.vatRate,
+            ...(jobData.shippingCosts != null ? { shippingCosts: normalizeAmount(jobData.shippingCosts) } : {}),
             ...(jobData.contactEmail ? { contactEmail: jobData.contactEmail } : {}),
             paper_ready: false,
             plates_ready: false,
@@ -1103,6 +1104,7 @@
                 amount: normalizeAmount(changedData.amount),
                 producer: changedData.producer,
                 vatRate: changedData.vatRate,
+                ...(changedData.shippingCosts != null ? { shippingCosts: normalizeAmount(changedData.shippingCosts) } : { shippingCosts: deleteField() }),
                 ...(changedData.contactEmail ? { contactEmail: changedData.contactEmail } : { contactEmail: deleteField() })
             });
             stopChangeMode();
@@ -1139,6 +1141,7 @@
                 amount: normalizeAmount(changedData.amount),
                 producer: changedData.producer,
                 vatRate: changedData.vatRate,
+                ...(changedData.shippingCosts != null ? { shippingCosts: normalizeAmount(changedData.shippingCosts) } : { shippingCosts: deleteField() }),
                 ...(changedData.contactEmail ? { contactEmail: changedData.contactEmail } : { contactEmail: deleteField() })
             });
             stopFinishedChangeMode();
