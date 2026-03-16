@@ -363,6 +363,7 @@
 />
 <ShipmentAddressModal
     bind:show={showShipmentAddressModal}
+    customerId={customer}
     initialValue={shipmentAddress}
     onSave={(v) => { shipmentAddress = v; }}
 />

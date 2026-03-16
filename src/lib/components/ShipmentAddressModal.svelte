@@ -1,18 +1,28 @@
 <script>
     import { tick } from 'svelte';
+    import { getFirestore, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+    import { app } from '$lib/FireBase.js';
 
     /** @typedef {{ name?: string, street?: string, zip?: string, city?: string, countryCode?: string }} ShipmentAddressValue */
+    /** @typedef {import('$lib/types').ShipmentAddress} ShipmentAddress */
 
-    /** @type {{ show?: boolean, initialValue?: ShipmentAddressValue, onSave: (value: ShipmentAddressValue) => void, onCancel?: (() => void) | null }} */
+    /** @type {{ show?: boolean, customerId?: string, initialValue?: ShipmentAddressValue, onSave: (value: ShipmentAddressValue) => void, onCancel?: (() => void) | null }} */
     let {
         show = $bindable(false),
+        customerId = '',
         initialValue = {},
         onSave,
         onCancel = null
     } = $props();
 
+    const db = getFirestore(app);
+
     /** @type {ShipmentAddressValue} */
     let localValue = $state({ name: '', street: '', zip: '', city: '', countryCode: 'DE' });
+
+    /** @type {ShipmentAddress[]} */
+    let existingAddresses = $state([]);
+    let loadingAddresses = $state(false);
 
     /** @type {HTMLInputElement | undefined} */
     let nameRef = $state(undefined);
@@ -26,9 +36,51 @@
                 city: initialValue.city ?? '',
                 countryCode: initialValue.countryCode ?? 'DE'
             };
+            loadExistingAddresses();
             tick().then(() => nameRef?.focus());
+        } else {
+            existingAddresses = [];
         }
     });
+
+    async function loadExistingAddresses() {
+        if (!customerId) return;
+        loadingAddresses = true;
+        try {
+            const q = query(
+                collection(db, 'shipmentAddresses'),
+                where('customerId', '==', customerId),
+                orderBy('createdAt', 'desc')
+            );
+            const snap = await getDocs(q);
+            existingAddresses = snap.docs.map(d => /** @type {ShipmentAddress} */ ({ id: d.id, ...d.data() }));
+        } catch (e) {
+            console.error('Fehler beim Laden der Versandadressen:', e);
+            existingAddresses = [];
+        } finally {
+            loadingAddresses = false;
+        }
+    }
+
+    /** @param {ShipmentAddress} addr */
+    function selectExisting(addr) {
+        localValue = {
+            name: addr.name ?? '',
+            street: addr.street ?? '',
+            zip: addr.zip ?? '',
+            city: addr.city ?? '',
+            countryCode: addr.countryCode ?? 'DE'
+        };
+    }
+
+    /** @param {ShipmentAddress} addr */
+    function formatAddressLine(addr) {
+        return [
+            addr.name,
+            addr.street,
+            [addr.zip, addr.city].filter(Boolean).join(' ')
+        ].filter(Boolean).join(', ');
+    }
 
     function handleSave() {
         onSave({ ...localValue });
@@ -71,6 +123,28 @@
     >
         <div class="modal" role="dialog" aria-modal="true" aria-label="Abweichende Versandadresse">
             <h3>Abweichende Versandadresse</h3>
+
+            {#if loadingAddresses}
+                <p class="loading-hint">Lade gespeicherte Adressen…</p>
+            {:else if existingAddresses.length > 0}
+                <div class="existing-section">
+                    <p class="existing-label">Gespeicherte Adressen für diesen Kunden:</p>
+                    <ul class="existing-list">
+                        {#each existingAddresses as addr (addr.id)}
+                            <li>
+                                <button
+                                    type="button"
+                                    class="existing-item"
+                                    onclick={() => selectExisting(addr)}
+                                >
+                                    {formatAddressLine(addr)}
+                                </button>
+                            </li>
+                        {/each}
+                    </ul>
+                </div>
+            {/if}
+
             <div class="form-fields">
                 <label class="field-label" for="sa-name">Empfänger / Firma</label>
                 <input
@@ -155,7 +229,7 @@
         background: white;
         border-radius: var(--radius-lg, 8px);
         padding: var(--spacing-xl, 24px);
-        width: min(480px, 90vw);
+        width: min(500px, 90vw);
         box-shadow: var(--shadow-xl, 0 20px 60px rgba(0,0,0,0.3));
         animation: slideIn 0.2s ease-out;
     }
@@ -268,5 +342,60 @@
 
     .btn-save:hover {
         opacity: 0.9;
+    }
+
+    .loading-hint {
+        font-size: var(--font-size-sm, 0.875rem);
+        color: var(--color-gray-500, #6b7280);
+        margin: 0 0 var(--spacing-md, 12px);
+    }
+
+    .existing-section {
+        margin-bottom: var(--spacing-md, 12px);
+        border: 1px solid var(--color-gray-200, #e5e7eb);
+        border-radius: var(--radius-md, 6px);
+        overflow: hidden;
+    }
+
+    .existing-label {
+        font-size: var(--font-size-xs, 0.75rem);
+        font-weight: 600;
+        color: var(--color-gray-600, #4b5563);
+        margin: 0;
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 12px);
+        background: var(--color-gray-50, #f9fafb);
+        border-bottom: 1px solid var(--color-gray-200, #e5e7eb);
+    }
+
+    .existing-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: 160px;
+        overflow-y: auto;
+    }
+
+    .existing-list li + li {
+        border-top: 1px solid var(--color-gray-100, #f3f4f6);
+    }
+
+    .existing-item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 12px);
+        background: white;
+        border: none;
+        border-radius: 0;
+        font-size: var(--font-size-sm, 0.875rem);
+        color: var(--color-gray-700, #374151);
+        cursor: pointer;
+        font-weight: normal;
+        transition: background 0.1s;
+    }
+
+    .existing-item:hover {
+        background: var(--color-primary-light, #eef2ff);
+        color: var(--color-primary, #4f46e5);
     }
 </style>
