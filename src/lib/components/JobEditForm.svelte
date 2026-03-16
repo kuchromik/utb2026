@@ -1,5 +1,6 @@
 <script>
     import DetailsEditModal from './DetailsEditModal.svelte';
+    import ShipmentAddressModal from './ShipmentAddressModal.svelte';
 
     /** @typedef {import('$lib/types').Job} Job */
     /** @typedef {import('$lib/types').Customer} Customer */
@@ -7,6 +8,7 @@
     /** @typedef {import('$lib/types').JobSaveHandler} JobSaveHandler */
     /** @typedef {import('$lib/types').VoidHandler} VoidHandler */
     /** @typedef {import('$lib/types').CustomerLabelHandler} CustomerLabelHandler */
+    /** @typedef {import('$lib/types').ShipmentAddressInput} ShipmentAddressInput */
 
     /** @type {{ job: Job, customers?: Customer[], vatRates?: VatRate[], onSave: JobSaveHandler, onCancel: VoidHandler, onNewCustomer: VoidHandler, onEditCustomer: CustomerLabelHandler }} */
     let { 
@@ -31,6 +33,9 @@
     let error = $state('');
     let loading = $state(false);
     let showDetailsModal = $state(false);
+    let showShipmentAddressModal = $state(false);
+    /** @type {ShipmentAddressInput} */
+    let shipmentAddress = $state(job.shipmentAddress ?? {});
 
     /** @param {number | string} value */
     function normalizeAmount(value) {
@@ -119,7 +124,8 @@
                 ...(shippingCosts !== '' ? { shippingCosts: normalizeAmount(shippingCosts) } : {}),
                 producer,
                 vatRate: Number(vatRate),
-                ...(selectedContactEmail ? { contactEmail: selectedContactEmail } : {})
+                ...(selectedContactEmail ? { contactEmail: selectedContactEmail } : {}),
+                shipmentAddress: isShipmentAddressSet(shipmentAddress) ? { ...shipmentAddress } : null
             });
         } catch (err) {
             error = `Fehler beim Speichern: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`;
@@ -166,6 +172,22 @@
             return fullName;
         }
         return customerData.companyName ?? '';
+    }
+
+    /** @param {ShipmentAddressInput | null | undefined} addr */
+    function isShipmentAddressSet(addr) {
+        return !!(addr && (addr.name || addr.street || addr.zip || addr.city));
+    }
+
+    /** @param {ShipmentAddressInput} addr */
+    function formatShipmentAddress(addr) {
+        const parts = [
+            addr.name,
+            addr.street,
+            [addr.zip, addr.city].filter(Boolean).join(' '),
+            addr.countryCode
+        ].filter(Boolean);
+        return parts.join(' · ');
     }
 </script>
 
@@ -317,12 +339,32 @@
     >
         Kunde bearbeiten
     </button>
+
+    <div class="field field-shipment-address">
+        <span class="field-label">Abw. Versandadresse</span>
+        <div class="details-preview">
+            <span class="details-preview-text" class:details-placeholder={!isShipmentAddressSet(shipmentAddress)}>
+                {isShipmentAddressSet(shipmentAddress) ? formatShipmentAddress(shipmentAddress) : 'Keine abweichende Versandadresse …'}
+            </span>
+            <button
+                type="button"
+                class="btn-details-edit"
+                onclick={() => showShipmentAddressModal = true}
+                disabled={loading}
+            >✎ Bearbeiten</button>
+        </div>
+    </div>
 </div>
 
 <DetailsEditModal
     bind:show={showDetailsModal}
     initialValue={details}
     onSave={(v) => { details = v; }}
+/>
+<ShipmentAddressModal
+    bind:show={showShipmentAddressModal}
+    initialValue={shipmentAddress}
+    onSave={(v) => { shipmentAddress = v; }}
 />
 
 <style>
@@ -364,6 +406,10 @@
 
     .field-customer {
         grid-column: span 1;
+    }
+
+    .field-shipment-address {
+        grid-column: 1 / -1;
     }
 
     .customer-hint {

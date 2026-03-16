@@ -9,7 +9,7 @@ import { env } from '$env/dynamic/private';
  */
 export async function POST({ request }) {
     try {
-        const { customerEmail, customerFirstName, customerLastName, contactEmail, contacts, jobname, toShip, trackingNumber } = await request.json();
+        const { customerEmail, customerFirstName, customerLastName, contactEmail, contacts, jobname, toShip, trackingNumber, shipmentAddress } = await request.json();
 
         // Validierung
         if (!customerEmail || !customerFirstName || !customerLastName || !jobname) {
@@ -64,6 +64,21 @@ export async function POST({ request }) {
         // E-Mail-Inhalt erstellen
         let subject, text, html;
 
+        // Abweichende Versandadresse aufbereiten
+        const hasShipmentAddress = shipmentAddress && (shipmentAddress.name || shipmentAddress.street || shipmentAddress.zip || shipmentAddress.city);
+        const shipmentAddressLines = hasShipmentAddress ? [
+            shipmentAddress.name,
+            shipmentAddress.street,
+            [shipmentAddress.zip, shipmentAddress.city].filter(Boolean).join(' '),
+            shipmentAddress.countryCode
+        ].filter(Boolean) : [];
+        const shipmentAddressHtml = hasShipmentAddress
+            ? `<div class="shipment-address"><strong>&#128238; Abweichende Versandadresse:</strong><br>${shipmentAddressLines.join('<br>')}</div>`
+            : '';
+        const shipmentAddressText = hasShipmentAddress
+            ? `\n\nAbweichende Versandadresse:\n${shipmentAddressLines.join('\n')}`
+            : '';
+
         if (toShip) {
             subject = `Ihre Bestellung wurde versendet - ${jobname}`;
             text = `
@@ -71,7 +86,7 @@ Hallo ${recipientFirstName} ${recipientLastName},
 
 Ihre Bestellung "${jobname}" wurde erfolgreich versendet.
 
-Link zur Sendungsverfolgung: ${trackingNumber}
+Link zur Sendungsverfolgung: ${trackingNumber}${shipmentAddressText}
 
 Bitte beachten Sie, dass es einige Stunden dauern kann, bis der Paketdienst einen konkreten Liefertermin bereitstellt.
 
@@ -90,6 +105,7 @@ Kai-Uwe Chromik
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .content { background: #f9f9f9; padding: 20px; border-radius: 8px; }
         .tracking { background: #fff; padding: 15px; border-left: 4px solid #667eea; margin: 15px 0; font-family: monospace; }
+        .shipment-address { background: #fff; padding: 15px; border-left: 4px solid #f59e0b; margin: 15px 0; font-size: 0.9em; }
         .footer { margin-top: 20px; font-size: 0.9em; color: #666; }
     </style>
 </head>
@@ -107,6 +123,7 @@ Kai-Uwe Chromik
             </div>
             <p>Bitte beachten Sie, dass es einige Stunden dauern kann, bis der Paketdienst einen konkreten Liefertermin bereitstellt.</p>
         </div>
+        ${shipmentAddressHtml}
         <div class="footer">
             <p>Mit freundlichen Grüßen<br>Kai-Uwe Chromik</p>
         </div>
@@ -122,7 +139,7 @@ Hallo ${recipientFirstName} ${recipientLastName},
 Ihre Bestellung "${jobname}" ist fertiggestellt und kann während unserer Öffnungszeiten abgeholt werden.
 
 Unsere Öffnungszeiten:
-Montag - Donnerstag: 9:00 - 15:00 Uhr oder nach Absprache
+Montag - Donnerstag: 9:00 - 15:00 Uhr oder nach Absprache${shipmentAddressText}
 
 Wir freuen uns auf Ihren Besuch!
 
@@ -141,6 +158,7 @@ Kai-Uwe Chromik
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .content { background: #f9f9f9; padding: 20px; border-radius: 8px; }
         .hours { background: #fff; padding: 15px; border-left: 4px solid #667eea; margin: 15px 0; }
+        .shipment-address { background: #fff; padding: 15px; border-left: 4px solid #f59e0b; margin: 15px 0; font-size: 0.9em; }
         .footer { margin-top: 20px; font-size: 0.9em; color: #666; }
     </style>
 </head>
@@ -158,6 +176,7 @@ Kai-Uwe Chromik
             </div>
             <p>Wir freuen uns auf Ihren Besuch!</p>
         </div>
+        ${shipmentAddressHtml}
         <div class="footer">
             <p>Mit freundlichen Grüßen<br>Kai-Uwe Chromik</p>
         </div>

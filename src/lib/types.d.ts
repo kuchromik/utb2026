@@ -32,8 +32,17 @@ export type ShipmentAddress = {
     street?: string;
     zip?: string;
     city?: string;
+    countryCode?: string;
     customerId?: string;
     createdAt?: number;
+};
+
+export type ShipmentAddressInput = {
+    name?: string;
+    street?: string;
+    zip?: string;
+    city?: string;
+    countryCode?: string;
 };
 
 export type VatRate = {
@@ -54,6 +63,7 @@ export type JobFormData = {
     producer: string;
     vatRate: number;
     contactEmail?: string;
+    shipmentAddress?: ShipmentAddressInput | null;
 };
 
 export type Job = JobFormData & {

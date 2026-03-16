@@ -491,6 +491,7 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
     });
 
     // QR-Code für SEPA-Überweisung generieren
+    let qrBottomY = 0;
     try {
         // EPC QR-Code Format für SEPA-Überweisungen
         const epcData = [
@@ -529,8 +530,33 @@ async function createInvoicePDF(job, customer, company, invoiceNumber) {
         doc.text('QR-Code scannen', qrX + qrSize/2, qrY + qrSize + 4, { align: 'center' });
         doc.text('für Überweisung', qrX + qrSize/2, qrY + qrSize + 8, { align: 'center' });
         doc.setTextColor(0);
+        qrBottomY = qrY + qrSize + 12;
     } catch (error) {
         console.warn('QR-Code konnte nicht generiert werden:', error);
+    }
+
+    // Sicherstellen, dass yPos unterhalb des QR-Codes liegt
+    if (qrBottomY > yPos) yPos = qrBottomY;
+
+    // Abweichende Versandadresse (falls vorhanden)
+    if (job.shipmentAddress && (job.shipmentAddress.name || job.shipmentAddress.street || job.shipmentAddress.zip || job.shipmentAddress.city)) {
+        yPos += 8;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Abweichende Versandadresse:', 20, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        const saLines = [
+            job.shipmentAddress.name,
+            job.shipmentAddress.street,
+            [job.shipmentAddress.zip, job.shipmentAddress.city].filter(Boolean).join(' '),
+            job.shipmentAddress.countryCode
+        ].filter(Boolean);
+        yPos += 6;
+        saLines.forEach(/** @param {string} line */ (line) => {
+            doc.text(line, 20, yPos);
+            yPos += 5;
+        });
     }
 
     // Fußzeile

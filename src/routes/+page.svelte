@@ -643,7 +643,8 @@
                         contacts: customer.contacts ?? [],
                         jobname: jobForShippedConfirm.jobname,
                         toShip: Boolean(jobForShippedConfirm.toShip),
-                        trackingNumber: trackingNumber
+                        trackingNumber: trackingNumber,
+                        shipmentAddress: jobForShippedConfirm.shipmentAddress ?? null
                     })
                 });
 
@@ -709,7 +710,8 @@
                         contacts: customer.contacts ?? [],
                         jobname: jobForDataChecked.jobname,
                         toShip: Boolean(jobForDataChecked.toShip),
-                        shipDate: shipDate
+                        shipDate: shipDate,
+                        shipmentAddress: jobForDataChecked.shipmentAddress ?? null
                     })
                 });
 
@@ -860,6 +862,27 @@
 
     /** @param {JobFormData} jobData */
     async function addNewJob(jobData) {
+        let shipmentAddressId = undefined;
+        /** @type {Record<string, any>} */
+        let shipmentAddressEmbed = {};
+
+        const sa = jobData.shipmentAddress;
+        if (sa && (sa.name || sa.street || sa.zip || sa.city)) {
+            const saRef = doc(collection(db, 'shipmentAdresses'));
+            const saData = {
+                name: sa.name || '',
+                street: sa.street || '',
+                zip: sa.zip || '',
+                city: sa.city || '',
+                countryCode: sa.countryCode || 'DE',
+                customerId: jobData.customerId,
+                createdAt: Date.now() / 1000
+            };
+            await setDoc(saRef, saData);
+            shipmentAddressId = saRef.id;
+            shipmentAddressEmbed = { shipmentAddressId, shipmentAddress: saData };
+        }
+
         const colRef = doc(collection(db, "Jobs"));
         await setDoc(colRef, {
             jobstart: Date.now() / 1000,
@@ -873,6 +896,7 @@
             vatRate: jobData.vatRate,
             ...(jobData.shippingCosts != null ? { shippingCosts: normalizeAmount(jobData.shippingCosts) } : {}),
             ...(jobData.contactEmail ? { contactEmail: jobData.contactEmail } : {}),
+            ...shipmentAddressEmbed,
             paper_ready: false,
             plates_ready: false,
             print_ready: false,
@@ -1098,6 +1122,25 @@
         }
 
         try {
+            let shipmentAddressUpdate = {};
+            const sa = changedData.shipmentAddress;
+            if (sa && (sa.name || sa.street || sa.zip || sa.city)) {
+                const saRef = doc(collection(db, 'shipmentAdresses'));
+                const saData = {
+                    name: sa.name || '',
+                    street: sa.street || '',
+                    zip: sa.zip || '',
+                    city: sa.city || '',
+                    countryCode: sa.countryCode || 'DE',
+                    customerId: changedData.customerId,
+                    createdAt: Date.now() / 1000
+                };
+                await setDoc(saRef, saData);
+                shipmentAddressUpdate = { shipmentAddressId: saRef.id, shipmentAddress: saData };
+            } else {
+                shipmentAddressUpdate = { shipmentAddressId: deleteField(), shipmentAddress: deleteField() };
+            }
+
             const jobRef = doc(db, "Jobs", jobToEdit.id);
             await updateDoc(jobRef, {
                 customerId: changedData.customerId,
@@ -1109,7 +1152,8 @@
                 producer: changedData.producer,
                 vatRate: changedData.vatRate,
                 ...(changedData.shippingCosts != null ? { shippingCosts: normalizeAmount(changedData.shippingCosts) } : { shippingCosts: deleteField() }),
-                ...(changedData.contactEmail ? { contactEmail: changedData.contactEmail } : { contactEmail: deleteField() })
+                ...(changedData.contactEmail ? { contactEmail: changedData.contactEmail } : { contactEmail: deleteField() }),
+                ...shipmentAddressUpdate
             });
             stopChangeMode();
         } catch (error) {
@@ -1135,6 +1179,25 @@
     async function saveChangedFinishedJob(changedData) {
         if (!finishedJobToEdit) return;
         try {
+            let shipmentAddressUpdate = {};
+            const sa = changedData.shipmentAddress;
+            if (sa && (sa.name || sa.street || sa.zip || sa.city)) {
+                const saRef = doc(collection(db, 'shipmentAdresses'));
+                const saData = {
+                    name: sa.name || '',
+                    street: sa.street || '',
+                    zip: sa.zip || '',
+                    city: sa.city || '',
+                    countryCode: sa.countryCode || 'DE',
+                    customerId: changedData.customerId,
+                    createdAt: Date.now() / 1000
+                };
+                await setDoc(saRef, saData);
+                shipmentAddressUpdate = { shipmentAddressId: saRef.id, shipmentAddress: saData };
+            } else {
+                shipmentAddressUpdate = { shipmentAddressId: deleteField(), shipmentAddress: deleteField() };
+            }
+
             const jobRef = doc(db, "Jobs", finishedJobToEdit.id);
             await updateDoc(jobRef, {
                 customerId: changedData.customerId,
@@ -1146,7 +1209,8 @@
                 producer: changedData.producer,
                 vatRate: changedData.vatRate,
                 ...(changedData.shippingCosts != null ? { shippingCosts: normalizeAmount(changedData.shippingCosts) } : { shippingCosts: deleteField() }),
-                ...(changedData.contactEmail ? { contactEmail: changedData.contactEmail } : { contactEmail: deleteField() })
+                ...(changedData.contactEmail ? { contactEmail: changedData.contactEmail } : { contactEmail: deleteField() }),
+                ...shipmentAddressUpdate
             });
             stopFinishedChangeMode();
         } catch (error) {

@@ -9,7 +9,7 @@ import { env } from '$env/dynamic/private';
  */
 export async function POST({ request }) {
     try {
-        const { customerEmail, customerFirstName, customerLastName, contactEmail, contacts, jobname, toShip, shipDate } = await request.json();
+        const { customerEmail, customerFirstName, customerLastName, contactEmail, contacts, jobname, toShip, shipDate, shipmentAddress } = await request.json();
 
         // Validierung
         if (!customerEmail || !customerFirstName || !customerLastName || !jobname || !shipDate) {
@@ -60,6 +60,21 @@ export async function POST({ request }) {
         const [year, month, day] = String(shipDate).split('-');
         const shipDateFormatted = `${day}.${month}.${year}`;
 
+        // Abweichende Versandadresse aufbereiten
+        const hasShipmentAddress = shipmentAddress && (shipmentAddress.name || shipmentAddress.street || shipmentAddress.zip || shipmentAddress.city);
+        const shipmentAddressLines = hasShipmentAddress ? [
+            shipmentAddress.name,
+            shipmentAddress.street,
+            [shipmentAddress.zip, shipmentAddress.city].filter(Boolean).join(' '),
+            shipmentAddress.countryCode
+        ].filter(Boolean) : [];
+        const shipmentAddressHtml = hasShipmentAddress
+            ? `<div class="shipment-address"><strong>&#128238; Abweichende Versandadresse:</strong><br>${shipmentAddressLines.join('<br>')}</div>`
+            : '';
+        const shipmentAddressText = hasShipmentAddress
+            ? `\n\nAbweichende Versandadresse:\n${shipmentAddressLines.join('\n')}`
+            : '';
+
         let subject, text, html;
 
         if (toShip) {
@@ -69,7 +84,7 @@ Hallo ${recipientFirstName} ${recipientLastName},
 
 wir haben Ihre Druckdaten für den Auftrag „${jobname}" geprüft und alles ist in Ordnung.
 
-Ihre Bestellung wird voraussichtlich am ${shipDateFormatted} versendet.
+Ihre Bestellung wird voraussichtlich am ${shipDateFormatted} versendet.${shipmentAddressText}
 
 Bei Fragen stehen wir Ihnen gerne zur Verfügung.
 
@@ -88,6 +103,7 @@ Kai-Uwe Chromik
         .header { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .content { background: #f9f9f9; padding: 20px; border-radius: 8px; }
         .date-box { background: #fff; padding: 15px; border-left: 4px solid #22c55e; margin: 15px 0; font-size: 1.1em; }
+        .shipment-address { background: #fff; padding: 15px; border-left: 4px solid #f59e0b; margin: 15px 0; font-size: 0.9em; }
         .footer { margin-top: 20px; font-size: 0.9em; color: #666; }
     </style>
 </head>
@@ -98,12 +114,13 @@ Kai-Uwe Chromik
         </div>
         <div class="content">
             <p>Hallo <strong>${recipientFirstName} ${recipientLastName}</strong>,</p>
-            <p>wir haben Ihre Druckdaten für den Auftrag „<strong>${jobname}</strong>" geprüft und alles ist in Ordnung.</p>
+            <p>wir haben Ihre Druckdaten für den Auftrag „<strong>${jobname}</strong>“ geprüft und alles ist in Ordnung.</p>
             <div class="date-box">
                 <strong>📦 Voraussichtlicher Versand:</strong> ${shipDateFormatted}
             </div>
             <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
         </div>
+        ${shipmentAddressHtml}
         <div class="footer">
             <p>Mit freundlichen Grüßen<br>Kai-Uwe Chromik</p>
         </div>
@@ -121,7 +138,7 @@ wir haben Ihre Druckdaten für den Auftrag „${jobname}" geprüft und alles ist
 Ihre Bestellung steht ab dem ${shipDateFormatted} während unserer Öffnungszeiten zur Abholung bereit.
 
 Unsere Öffnungszeiten:
-Montag - Donnerstag: 9:00 - 15:00 Uhr oder nach Absprache
+Montag - Donnerstag: 9:00 - 15:00 Uhr oder nach Absprache${shipmentAddressText}
 
 Wir freuen uns auf Ihren Besuch!
 
@@ -161,6 +178,7 @@ Kai-Uwe Chromik
             </div>
             <p>Wir freuen uns auf Ihren Besuch!</p>
         </div>
+        ${shipmentAddressHtml}
         <div class="footer">
             <p>Mit freundlichen Grüßen<br>Kai-Uwe Chromik</p>
         </div>
