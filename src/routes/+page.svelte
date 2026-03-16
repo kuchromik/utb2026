@@ -868,7 +868,7 @@
 
         const sa = jobData.shipmentAddress;
         if (sa && (sa.name || sa.street || sa.zip || sa.city)) {
-            const saRef = doc(collection(db, 'shipmentAdresses'));
+            const saRef = doc(collection(db, 'shipmentAddresses'));
             const saData = {
                 name: sa.name || '',
                 street: sa.street || '',
@@ -1125,7 +1125,7 @@
             let shipmentAddressUpdate = {};
             const sa = changedData.shipmentAddress;
             if (sa && (sa.name || sa.street || sa.zip || sa.city)) {
-                const saRef = doc(collection(db, 'shipmentAdresses'));
+                const saRef = doc(collection(db, 'shipmentAddresses'));
                 const saData = {
                     name: sa.name || '',
                     street: sa.street || '',
@@ -1182,7 +1182,7 @@
             let shipmentAddressUpdate = {};
             const sa = changedData.shipmentAddress;
             if (sa && (sa.name || sa.street || sa.zip || sa.city)) {
-                const saRef = doc(collection(db, 'shipmentAdresses'));
+                const saRef = doc(collection(db, 'shipmentAddresses'));
                 const saData = {
                     name: sa.name || '',
                     street: sa.street || '',

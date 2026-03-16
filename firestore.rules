@@ -33,6 +33,12 @@ service cloud.firestore {
       // Only authenticated users can create, update, delete VAT rates
       allow write: if isAuthenticated();
     }
+
+    // Rules for shipmentAddresses collection
+    match /shipmentAddresses/{addressId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
     
     // Deny all other access by default
     match /{document=**} {
