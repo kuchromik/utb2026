@@ -98,6 +98,30 @@
             loadShipmentAddress();
         }
     });
+
+    const FOURTEEN_DAYS_SECS = 14 * 24 * 60 * 60;
+
+    /** true → Rechnung vorhanden */
+    const hasInvoice = $derived(Boolean(job.invoiceDate));
+
+    /**
+     * true  → Rechnung vorhanden und > 14 Tage alt → Rot
+     * false → Rechnung vorhanden und ≤ 14 Tage alt → Grün
+     * (kein Wert wenn keine Rechnung → Grau + deaktiviert)
+     */
+    const invoiceOverdue = $derived(
+        job.invoiceDate
+            ? (Date.now() / 1000 - job.invoiceDate) >= FOURTEEN_DAYS_SECS
+            : false
+    );
+
+    const invoicePaidTitle = $derived(
+        job.invoiceNumber && job.invoiceDate
+            ? `Rechnung Nr. ${job.invoiceNumber} vom ${new Date(job.invoiceDate * 1000).toLocaleDateString('de-DE')}${
+                invoiceOverdue ? ' — ÜBERFÄLLIG (> 14 Tage)' : ''
+              }`
+            : 'Noch keine Rechnung erstellt'
+    );
 </script>
 
 <div class="finished-joblist {index % 2 === 0 ? 'secondRow' : ''} {job.FixGuenstig ? 'fixguenstig' : ''}">
@@ -160,7 +184,12 @@
         B
     </button>
 
-    <button onclick={() => onArchive(job.id)}>
+    <button
+        class="btn-paid {!hasInvoice ? 'btn-paid-none' : invoiceOverdue ? 'btn-paid-overdue' : 'btn-paid-pending'}"
+        title={invoicePaidTitle}
+        disabled={!hasInvoice}
+        onclick={() => onArchive(job.id)}
+    >
         Bezahlt?
     </button>
     <button onclick={() => onDelete(job.id)}>
@@ -362,6 +391,34 @@
 
     button:nth-of-type(3):hover {
         background: var(--color-danger-hover);
+    }
+
+    /* Bezahlt?-Button: Farbe abhängig vom Rechnungsalter */
+    .btn-paid {
+        color: white;
+    }
+
+    .btn-paid-none {
+        background: #9ca3af !important;
+        color: #f3f4f6 !important;
+        cursor: not-allowed !important;
+        opacity: 0.75;
+    }
+
+    .btn-paid-pending {
+        background: #10b981 !important;
+    }
+
+    .btn-paid-pending:hover {
+        background: #059669 !important;
+    }
+
+    .btn-paid-overdue {
+        background: var(--color-danger) !important;
+    }
+
+    .btn-paid-overdue:hover {
+        background: var(--color-danger-hover) !important;
     }
 
     p {
