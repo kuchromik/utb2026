@@ -13,8 +13,8 @@
 
     function getInvoiceEmail() {
         if (!customer || !job) return '';
-        // Priorisierung: job.billingEmail > customer.invoiceMail > customer.email
-        return job.billingEmail || customer.invoiceMail || customer.email || '';
+        // Priorisierung: job.billingEmail > job.contactEmail > customer.invoiceMail > customer.email
+        return job.billingEmail || job.contactEmail || customer.invoiceMail || customer.email || '';
     }
 
     function getCustomerName() {
