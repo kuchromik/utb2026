@@ -1,5 +1,5 @@
 <script>
-    import { tick } from 'svelte';
+    import { tick, untrack } from 'svelte';
 
     /** @typedef {import('$lib/types').Customer} Customer */
     /** @typedef {import('$lib/types').CustomerCompleteHandler} CustomerCompleteHandler */
@@ -28,19 +28,27 @@
     let activeInput = $state(undefined);
 
     $effect(() => {
-        if (show && customer) {
-            firstName = customer.firstName ?? '';
-            lastName = customer.lastName ?? '';
-            company = customer.company ?? '';
-            address = customer.address ?? '';
-            zip = customer.zip ?? '';
-            city = customer.city ?? '';
-            countryCode = customer.countryCode ?? 'DE';
-            email = customer.email ?? '';
-            invoiceMail = customer.invoiceMail ?? '';
-            single = customer.single ?? false;
-            additionalContacts = customer.contacts ? customer.contacts.map(c => ({ ...c })) : [];
-            error = '';
+        // Nur show und customer-ID als Trigger tracken
+        const isOpen = show;
+        const customerId = customer?.id;
+
+        if (isOpen && customer) {
+            // customer-Properties mit untrack lesen, damit deren Änderungen
+            // den Effect nicht erneut auslösen (verhindert Reset beim Checkbox-Klick)
+            untrack(() => {
+                firstName = customer.firstName ?? '';
+                lastName = customer.lastName ?? '';
+                company = customer.company ?? '';
+                address = customer.address ?? '';
+                zip = customer.zip ?? '';
+                city = customer.city ?? '';
+                countryCode = customer.countryCode ?? 'DE';
+                email = customer.email ?? '';
+                invoiceMail = customer.invoiceMail ?? '';
+                single = customer.single ?? false;
+                additionalContacts = customer.contacts ? customer.contacts.map(c => ({ ...c })) : [];
+                error = '';
+            });
 
             tick().then(() => activeInput?.focus());
         }
