@@ -761,10 +761,10 @@
         if (!jobForInvoice || !customerForInvoice) return;
 
         try {
-            // Priorisierung der Rechnungsmail: job.billingEmail > job.contactEmail > customer.invoiceMail > customer.email
-            const invoiceEmail = jobForInvoice.billingEmail || 
+            // Priorisierung der Rechnungsmail: customer.invoiceMail > job.billingEmail > job.contactEmail > customer.email
+            const invoiceEmail = customerForInvoice.invoiceMail ||
+                jobForInvoice.billingEmail || 
                 jobForInvoice.contactEmail ||
-                customerForInvoice.invoiceMail || 
                 customerForInvoice.email;
             
             if (!invoiceEmail) {
