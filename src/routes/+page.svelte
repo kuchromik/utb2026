@@ -982,6 +982,7 @@
                 countryCode: customerData.countryCode.trim().toUpperCase(),
                 email: customerData.email.trim().toLowerCase(),
                 ...(customerData.invoiceMail ? { invoiceMail: customerData.invoiceMail.trim().toLowerCase() } : {}),
+                single: customerData.single === true,
                 ...(customerData.contacts?.length ? { contacts: customerData.contacts } : {})
             });
         } catch (error) {
@@ -1012,6 +1013,7 @@
                 countryCode: customerData.countryCode.trim().toUpperCase(),
                 email: customerData.email.trim().toLowerCase(),
                 ...(customerData.invoiceMail ? { invoiceMail: customerData.invoiceMail.trim().toLowerCase() } : { invoiceMail: deleteField() }),
+                single: customerData.single === true,
                 ...(customerData.contacts?.length ? { contacts: customerData.contacts } : { contacts: deleteField() })
             });
 
