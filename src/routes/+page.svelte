@@ -95,6 +95,16 @@
     let archiveCustomer = $state('');
     let archiveSearch = $state('');
 
+    const openInvoicesTotal = $derived(
+        finishedJobs
+            .filter(job => job.invoice_ready)
+            .reduce((sum, job) => {
+                const net = Number(job.amount) || 0;
+                const vatRate = job.vatRate ?? 19;
+                return sum + net * (1 + vatRate / 100);
+            }, 0)
+    );
+
     /** @param {number | string} value */
     function normalizeAmount(value) {
         const numericValue = Number(value);
@@ -1300,6 +1310,11 @@
     {:else if loggedIn && showFinished}
         <div class="finished-header">
             <h2>✓ {finishedJobs.length} fertige Aufträge</h2>
+            {#if openInvoicesTotal > 0}
+                <span class="open-invoices-total">
+                    Offene Rechnungen: {openInvoicesTotal.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                </span>
+            {/if}
             <button onclick={() => {showFinished = false;}}>
                 ← Zurück zu aktiven Aufträgen
             </button>
@@ -1646,6 +1661,17 @@
     .finished-header h2 {
         margin: 0;
         color: #065f46;
+    }
+
+    .open-invoices-total {
+        font-size: var(--font-size-sm);
+        font-weight: 700;
+        color: #065f46;
+        background: #ffffff;
+        border: 2px solid #10b981;
+        border-radius: var(--radius-md);
+        padding: 4px 12px;
+        white-space: nowrap;
     }
 
     .finished-header button {
