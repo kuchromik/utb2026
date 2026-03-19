@@ -60,7 +60,7 @@
                 <textarea
                     bind:this={textareaRef}
                     bind:value={localValue}
-                    maxlength="240"
+                    maxlength="500"
                     placeholder="Details eingeben…"
                     rows="8"
                 ></textarea>
@@ -69,7 +69,7 @@
                     class:char-warn={localValue.length >= 200}
                     class:char-limit={localValue.length >= 230}
                 >
-                    {localValue.length} / 240 Zeichen
+                    {localValue.length} / 500 Zeichen
                 </p>
             </div>
             <div class="modal-buttons">
