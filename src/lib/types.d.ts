@@ -82,6 +82,7 @@ export type Job = JobFormData & {
     invoiceNumber?: number;
     invoicePath?: string;
     invoiceDate?: number;
+    payDate?: number;
     billingEmail?: string;
     billingAddress?: {
         firma?: string;

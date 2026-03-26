@@ -14,6 +14,7 @@
     import JobListItem from '$lib/components/JobListItem.svelte';
     import FinishedJobListItem from '$lib/components/FinishedJobListItem.svelte';
     import FinishedJobListHeader from '$lib/components/FinishedJobListHeader.svelte';
+    import ArchiveListHeader from '$lib/components/ArchiveListHeader.svelte';
     import ShippedConfirmModal from '$lib/components/ShippedConfirmModal.svelte';
     import InvoiceConfirmModal from '$lib/components/InvoiceConfirmModal.svelte';
     import DataCheckedModal from '$lib/components/DataCheckedModal.svelte';
@@ -954,6 +955,18 @@
         }
     }
 
+    async function archivePaidJob() {
+        try {
+            const jobRef = doc(db, "Jobs", archiveJobId);
+            await updateDoc(jobRef, {
+                archiv: true,
+                payDate: Date.now() / 1000
+            });
+        } catch (error) {
+            console.error("Error archiving paid job:", error);
+        }
+    }
+
     /** @param {string} jobId */
     function confirmDeleteJob(jobId) {
         deleteJobId = jobId;
@@ -1364,6 +1377,7 @@
                 placeholder="Suche in Kunde, Jobname oder Details"
             />
         </div>
+        <ArchiveListHeader />
         <ul>
             {#each getFilteredArchivJobs() as job, index (job.id)}
                 <li>
@@ -1407,7 +1421,7 @@
     message={paidArchiveMessage}
     confirmText="Ja, bezahlt – Archivieren"
     cancelText="Abbrechen"
-    onConfirm={archiveJob}
+    onConfirm={archivePaidJob}
 />
 
 <Modal

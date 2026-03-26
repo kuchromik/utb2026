@@ -3,12 +3,16 @@
 
 <div class="archive-list-header">
     <div class="header-item">Datum</div>
+    <div class="header-item">Liefert.</div>
     <div class="header-item">Kunde</div>
     <div class="header-item">Auftrag</div>
     <div class="header-item">Menge</div>
     <div class="header-item">Det.</div>
     <div class="header-item">Betrag</div>
     <div class="header-item">Prod.</div>
+    <div class="header-item">Rg.-Nr.</div>
+    <div class="header-item">Rechnungsdatum</div>
+    <div class="header-item">Bezahlt am</div>
     <div class="header-item">Aktion</div>
 </div>
 
@@ -16,13 +20,17 @@
     .archive-list-header {
         display: grid;
         grid-template-columns: 
-            140px          /* Datum */
-            minmax(150px, 200px)  /* Kunde */
-            minmax(200px, 1fr)    /* Jobname */
-            90px           /* Menge */
-            minmax(150px, 1fr)    /* Details */
-            100px          /* Betrag */
-            100px          /* Produzent */
+            120px          /* Datum */
+            88px           /* Liefertermin */
+            125px          /* Kunde */
+            150px          /* Jobname */
+            75px           /* Menge */
+            150px          /* Details */
+            120px          /* Betrag */
+            90px           /* Produzent */
+            80px           /* Rg.-Nr. */
+            110px          /* Rechnungsdatum */
+            110px          /* Bezahlt am */
             100px;         /* Button */
         gap: var(--spacing-sm);
         align-items: center;
@@ -44,15 +52,21 @@
         text-overflow: ellipsis;
     }
 
-    .header-item:nth-child(4) {
+    .header-item:nth-child(5) {
         text-align: center;
     }
 
-    .header-item:nth-child(6) {
+    .header-item:nth-child(7) {
         text-align: right;
     }
 
-    .header-item:nth-child(7) {
+    .header-item:nth-child(8) {
+        text-align: center;
+    }
+
+    .header-item:nth-child(9),
+    .header-item:nth-child(10),
+    .header-item:nth-child(11) {
         text-align: center;
     }
 

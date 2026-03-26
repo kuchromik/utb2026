@@ -317,6 +317,15 @@
     <div class="producer">
         <p title={job.producer}>{job.producer}</p>
     </div>
+    <div class="invoice-number">
+        <p>{job.invoiceNumber ?? '–'}</p>
+    </div>
+    <div class="invoice-date">
+        <p>{job.invoiceDate ? new Date(job.invoiceDate * 1000).toLocaleDateString('de-DE') : '–'}</p>
+    </div>
+    <div class="pay-date">
+        <p>{job.payDate ? new Date(job.payDate * 1000).toLocaleDateString('de-DE') : '–'}</p>
+    </div>
     <button onclick={() => onEdit(job, index)}>
         Kopieren
     </button>
@@ -567,6 +576,9 @@
             150px          /* Details */
             120px          /* Betrag + MwSt. */
             90px           /* Produzent */
+            80px           /* Rg.-Nr. */
+            110px          /* Rechnungsdatum */
+            110px          /* Bezahlt am */
             100px;         /* Button */
         gap: 8px;
         align-items: center;
@@ -607,6 +619,25 @@
 
     .joblist-archive button:hover {
         background: var(--color-info-hover);
+    }
+
+    .invoice-number {
+        font-size: var(--font-size-sm);
+        color: var(--color-gray-600);
+        text-align: center;
+    }
+
+    .invoice-date,
+    .pay-date {
+        font-size: var(--font-size-sm);
+        color: var(--color-gray-600);
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .pay-date p {
+        color: var(--color-success);
+        font-weight: 600;
     }
 
     p {
