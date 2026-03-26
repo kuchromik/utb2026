@@ -2,11 +2,13 @@
     /** @typedef {import('$lib/types').Job} Job */
     /** @typedef {import('$lib/types').Customer} Customer */
     
-    /** @type {{ show?: boolean, job?: Job, customer?: Customer, onConfirm: () => void, onCancel: () => void }} */
+    /** @type {{ show?: boolean, job?: Job, customer?: Customer, additionalJobs?: Job[], selectedAdditionalJobIds?: string[], onConfirm: () => void, onCancel: () => void }} */
     let { 
         show = $bindable(false),
         job,
         customer,
+        additionalJobs = [],
+        selectedAdditionalJobIds = $bindable([]),
         onConfirm,
         onCancel
     } = $props();
@@ -57,9 +59,11 @@
 
     function calcInvoice() {
         if (!job) return null;
-        const netto = parseFloat((Number(job.amount) || 0).toFixed(2));
-        const shipping = parseFloat((Number(job.shippingCosts) || 0).toFixed(2));
+        const selectedAdditional = additionalJobs.filter(j => selectedAdditionalJobIds.includes(j.id ?? ''));
+        const allJobs = [job, ...selectedAdditional];
         const vatRate = Number(job.vatRate) || 19;
+        const netto = parseFloat(allJobs.reduce((sum, j) => sum + (Number(j.amount) || 0), 0).toFixed(2));
+        const shipping = parseFloat(Math.max(...allJobs.map(j => Number(j.shippingCosts) || 0)).toFixed(2));
         const nettosumme = parseFloat((netto + shipping).toFixed(2));
         const mwst = parseFloat((nettosumme * vatRate / 100).toFixed(2));
         const gesamt = parseFloat((nettosumme + mwst).toFixed(2));
@@ -89,16 +93,17 @@
         step = 'loading';
         previewError = '';
         try {
+            const selectedAdditional = additionalJobs.filter(j => selectedAdditionalJobIds.includes(j.id ?? ''));
+            const allJobs = [job, ...selectedAdditional];
             const response = await fetch('/api/create-invoice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    job,
+                    jobs: allJobs,
                     customer,
                     userId: null,
                     invoiceEmail: getInvoiceEmail(),
                     customerName: getCustomerName(),
-                    amount: job.amount,
                     vatRate: job.vatRate || 19,
                     previewOnly: true
                 })
@@ -142,7 +147,31 @@
                         <strong>Kunde:</strong>
                         <span>{getCustomerName()}</span>
                     </div>
-                    
+
+                    {#if additionalJobs.length > 0}
+                        <div class="additional-jobs-section">
+                            <p class="additional-jobs-title">📋 Weitere abrechnungsfertige Aufträge dieses Kunden (gleicher MwSt.-Satz) – Mit einbeziehen?</p>
+                            {#each additionalJobs as additionalJob (additionalJob.id)}
+                                <label class="additional-job-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedAdditionalJobIds.includes(additionalJob.id ?? '')}
+                                        onchange={(e) => {
+                                            const checked = /** @type {HTMLInputElement} */ (e.currentTarget).checked;
+                                            if (checked) {
+                                                selectedAdditionalJobIds = [...selectedAdditionalJobIds, additionalJob.id ?? ''];
+                                            } else {
+                                                selectedAdditionalJobIds = selectedAdditionalJobIds.filter(id => id !== additionalJob.id);
+                                            }
+                                        }}
+                                    />
+                                    <span class="additional-job-name">{additionalJob.jobname}</span>
+                                    <span class="additional-job-amount">{parseFloat((Number(additionalJob.amount) || 0).toFixed(2)).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
+                                </label>
+                            {/each}
+                        </div>
+                    {/if}
+
                     {#if getBillingAddress()}
                         <div class="detail-row billing-highlight">
                             <strong>📍 Rechnungsadresse:</strong>
@@ -182,6 +211,9 @@
                                 <span>{fmt(c.gesamt)} €</span>
                             </div>
                         </div>
+                    {/if}
+                    {#if selectedAdditionalJobIds.length > 0}
+                        <p class="info-note shipping-note">ℹ️ Versandkosten: Bei Sammelrechnungen wird nur der höchste Versandkostenbetrag berechnet, da alle Aufträge gemeinsam versendet werden.</p>
                     {/if}
                     <div class="detail-row email-row">
                         <strong>📧 E-Mail Adresse:</strong>
@@ -415,6 +447,11 @@
         font-weight: 600;
     }
 
+    .info-note.shipping-note {
+        background: #f0fdf4;
+        border-left-color: #16a34a;
+    }
+
     .confirmation-question {
         background: var(--color-warning-light);
         border: 2px solid var(--color-warning);
@@ -474,5 +511,42 @@
 
     .btn-cancel:hover {
         background: var(--color-gray-300);
+    }
+
+    .additional-jobs-section {
+        margin: var(--spacing-md) 0;
+        padding: var(--spacing-md);
+        background: var(--color-info-light, #eff6ff);
+        border: 1px solid var(--color-info, #3b82f6);
+        border-radius: var(--radius-md);
+    }
+
+    .additional-jobs-title {
+        margin: 0 0 var(--spacing-sm) 0;
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        color: var(--color-gray-700);
+    }
+
+    .additional-job-label {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-sm) 0;
+        cursor: pointer;
+        font-size: var(--font-size-sm);
+    }
+
+    .additional-job-label:not(:last-child) {
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .additional-job-name {
+        flex: 1;
+    }
+
+    .additional-job-amount {
+        font-weight: 600;
+        color: var(--color-gray-700);
     }
 </style>

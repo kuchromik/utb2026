@@ -72,6 +72,10 @@
     let jobForInvoice = $state(null);
     /** @type {Customer | null} */
     let customerForInvoice = $state(null);
+    /** @type {Job[]} */
+    let additionalJobsForInvoice = $state([]);
+    /** @type {string[]} */
+    let selectedAdditionalJobIds = $state([]);
     /** @type {Job | null} */
     let jobForDataChecked = $state(null);
     let showDataCheckedModal = $state(false);
@@ -167,6 +171,18 @@
      */
     function getCustomerByLabel(customerLabel) {
         return customers.find((customer) => getCustomerLabel(customer) === customerLabel);
+    }
+
+    /**
+     * Gibt einen Schlüssel für die effektive Rechnungsadresse eines Jobs zurück.
+     * Jobs mit gleicher Rechnungsadresse können zusammen fakturiert werden.
+     * @param {Job} job
+     * @returns {string}
+     */
+    function effectiveBillingKey(job) {
+        if (!job.billingAddress) return 'default';
+        const b = job.billingAddress;
+        return `${b.firma || ''}|${b.strasse || ''}|${b.plz || ''}|${b.ort || ''}|${b.land || ''}`;
     }
 
     /** @param {string} customerLabel */
@@ -510,7 +526,7 @@
             }
             
             const job = finishedJobs.find(j => j.id === ID) || jobs.find(j => j.id === ID);
-            console.log('Job found:', job);
+            console.log('Job found:', $state.snapshot(job));
             
             if (!job) {
                 console.error('Job nicht gefunden in finishedJobs oder jobs');
@@ -533,11 +549,22 @@
                 customer = customers.find(c => getCustomerLabel(c) === job.customer);
             }
             
-            console.log('Kunde gefunden:', customer);
+            console.log('Kunde gefunden:', $state.snapshot(customer));
 
             if (customer) {
                 jobForInvoice = job;
                 customerForInvoice = customer;
+                // Finde weitere abrechenbare Jobs desselben Kunden (gleicher MwSt.-Satz, gleiche Rechnungsadresse)
+                const primaryVatRate = job.vatRate ?? 19;
+                const primaryBillingKey = effectiveBillingKey(job);
+                additionalJobsForInvoice = finishedJobs.filter(j =>
+                    j.id !== job.id &&
+                    !j.invoice_ready &&
+                    j.customerId === job.customerId &&
+                    (j.vatRate ?? 19) === primaryVatRate &&
+                    effectiveBillingKey(j) === primaryBillingKey
+                );
+                selectedAdditionalJobIds = [];
                 console.log('Öffne Invoice Modal');
                 showInvoiceModal = true;
                 return;
@@ -791,17 +818,20 @@
                 `${customerForInvoice.firstName || ''} ${customerForInvoice.lastName || ''}`.trim();
 
             // PDF erstellen und E-Mail direkt serverseitig versenden (kein PDF-Roundtrip)
-            console.log('Sende Anfrage an /api/create-invoice...');
+            // Alle ausgewählten Jobs zusammenstellen
+            const selectedAdditional = finishedJobs.filter(j => selectedAdditionalJobIds.includes(j.id));
+            const allJobs = [jobForInvoice, ...selectedAdditional];
+
+            console.log('Sende Anfrage an /api/create-invoice...', allJobs.length, 'Job(s)');
             const invoiceResponse = await fetch('/api/create-invoice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    job: jobForInvoice,
+                    jobs: allJobs,
                     customer: customerForInvoice,
                     userId: user,
                     invoiceEmail,
                     customerName,
-                    amount: jobForInvoice.amount,
                     vatRate: jobForInvoice.vatRate || 19
                 })
             });
@@ -819,15 +849,22 @@
             const invoiceData = await invoiceResponse.json();
             console.log('Rechnung erstellt und versendet:', invoiceData);
 
-            // Job als "invoice_ready" markieren
-            const jobRef = doc(db, "Jobs", jobForInvoice.id);
-            await updateDoc(jobRef, {
-                invoice_ready: true,
-                invoiceNumber: invoiceData.invoiceNumber,
-                invoiceDate: Date.now() / 1000
-            });
+            // Alle Jobs per Batch als "invoice_ready" markieren mit derselben Rechnungsnummer
+            const batch = writeBatch(db);
+            for (const j of allJobs) {
+                const jobRef = doc(db, "Jobs", j.id);
+                batch.update(jobRef, {
+                    invoice_ready: true,
+                    invoiceNumber: invoiceData.invoiceNumber,
+                    invoiceDate: Date.now() / 1000
+                });
+            }
+            await batch.commit();
 
-            alert(`Rechnung Nr. ${invoiceData.invoiceNumber} wurde erfolgreich erstellt und an ${invoiceEmail} versendet!\n\nEine Kopie wurde an invoicelog@online.de gesendet.`);
+            const jobCountInfo = allJobs.length > 1
+                ? `${allJobs.length} Aufträge`
+                : `"${allJobs[0].jobname}"`;
+            alert(`Rechnung Nr. ${invoiceData.invoiceNumber} für ${jobCountInfo} wurde erfolgreich erstellt und an ${invoiceEmail} versendet!\n\nEine Kopie wurde an invoicelog@online.de gesendet.`);
         } catch (error) {
             console.error('Fehler bei der Rechnungserstellung:', error);
             const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
@@ -836,6 +873,8 @@
             showInvoiceModal = false;
             jobForInvoice = null;
             customerForInvoice = null;
+            additionalJobsForInvoice = [];
+            selectedAdditionalJobIds = [];
         }
     }
 
@@ -843,6 +882,8 @@
         showInvoiceModal = false;
         jobForInvoice = null;
         customerForInvoice = null;
+        additionalJobsForInvoice = [];
+        selectedAdditionalJobIds = [];
     }
 
     /** @param {string | undefined} trackingNumber */
@@ -1458,6 +1499,8 @@
     bind:show={showInvoiceModal}
     job={jobForInvoice ?? undefined}
     customer={customerForInvoice ?? undefined}
+    additionalJobs={additionalJobsForInvoice}
+    bind:selectedAdditionalJobIds={selectedAdditionalJobIds}
     onConfirm={createAndSendInvoice}
     onCancel={cancelInvoice}
 />
