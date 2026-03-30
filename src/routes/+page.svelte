@@ -1152,7 +1152,8 @@
     }
 
     /** @param {Job} job */
-    async function addNewJobFromArchiv(job) {
+    /** @param {Job} job */
+    async function copyJob(job) {
         try {
             const colRef = doc(collection(db, "Jobs"));
             await setDoc(colRef, {
@@ -1173,10 +1174,15 @@
                 archiv: false,
                 finished: false
             });
-            showArchiv = false;
         } catch (error) {
-            console.error("Error copying job from archive:", error);
+            console.error("Fehler beim Kopieren des Auftrags:", error);
         }
+    }
+
+    /** @param {Job} job */
+    async function addNewJobFromArchiv(job) {
+        await copyJob(job);
+        showArchiv = false;
     }
 
     /** @param {Job} job @param {number} index */
@@ -1347,6 +1353,7 @@
                         onEdit={openEditMode}
                         onArchive={confirmArchiveJob}
                         onDelete={confirmDeleteJob}
+                        onCopy={copyJob}
                     />
                     
                     {#if editMode && jobToEdit && jobToEditIndex === index}
@@ -1388,6 +1395,7 @@
                         onEdit={openFinishedEditMode}
                         onArchive={confirmPaidArchiveJob}
                         onDelete={confirmFinishedDeleteJob}
+                        onCopy={copyJob}
                     />
 
                     {#if finishedEditMode && finishedJobToEdit && finishedJobToEditIndex === index}

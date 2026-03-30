@@ -8,7 +8,7 @@
     /** @typedef {import('$lib/types').JobIdHandler} JobIdHandler */
     /** @typedef {import('$lib/types').ShipmentAddress} ShipmentAddress */
 
-    /** @type {{ job: Job, index: number, onToggleReady: JobToggleReadyHandler, onEdit: JobEditHandler, onArchive: JobIdHandler, onDelete: JobIdHandler, showReadyChecks?: boolean }} */
+    /** @type {{ job: Job, index: number, onToggleReady: JobToggleReadyHandler, onEdit: JobEditHandler, onArchive: JobIdHandler, onDelete: JobIdHandler, onCopy?: (job: Job) => void, showReadyChecks?: boolean }} */
     let { 
         job,
         index,
@@ -16,6 +16,7 @@
         onEdit,
         onArchive,
         onDelete,
+        onCopy,
         showReadyChecks = true
     } = $props();
 
@@ -270,6 +271,11 @@
         <button onclick={() => onDelete(job.id)} title="Löschen">
             L
         </button>
+        {#if onCopy}
+            <button class="btn-copy" onclick={() => onCopy(job)} title="Als neuen Auftrag kopieren">
+                K
+            </button>
+        {/if}
     {/if}
 </div>
 {:else}
@@ -345,7 +351,7 @@
             120px          /* Betrag + MwSt. */
             65px           /* Produzent */
             48px 48px 48px 48px 48px 48px  /* Checkboxen (6: Papier, Platten, Druck, Daten, Klar, Versand) */
-            58px 58px;     /* Buttons (B, L) */
+            58px 58px 58px;  /* Buttons (B, L, K) */
         gap: 8px;
         align-items: center;
         background: var(--color-white);
@@ -550,6 +556,15 @@
 
     button:nth-of-type(2):hover {
         background: var(--color-danger-hover);
+    }
+
+    .btn-copy {
+        background: var(--color-info);
+        color: white;
+    }
+
+    .btn-copy:hover {
+        background: var(--color-info-hover);
     }
 
     /* Für Archiv-Ansicht (nur Kopieren-Button) */

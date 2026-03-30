@@ -16,7 +16,7 @@
     <div class="header-item">Plat.</div>
     <div class="header-item">Druck</div>
     <div class="header-item">Klar?</div>
-    <div class="header-item" style="grid-column: span 2; text-align: center;">Akt.</div>
+    <div class="header-item" style="grid-column: span 3; text-align: center;">Akt.</div>
 </div>
 
 <style>
@@ -32,7 +32,7 @@
             120px          /* Betrag */
             65px           /* Produzent */
             48px 48px 48px 48px 48px 48px  /* Checkboxen (6: Papier, Platten, Druck, Daten, Klar, Versand) */
-            58px 58px;     /* Buttons (B, L) */
+            58px 58px 58px;  /* Buttons (B, L, K) */
         gap: 8px;
         align-items: center;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

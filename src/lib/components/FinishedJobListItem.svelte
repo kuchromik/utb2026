@@ -8,14 +8,15 @@
     /** @typedef {import('$lib/types').JobIdHandler} JobIdHandler */
     /** @typedef {import('$lib/types').ShipmentAddress} ShipmentAddress */
 
-    /** @type {{ job: Job, index: number, onToggleReady: JobToggleReadyHandler, onEdit: JobEditHandler, onArchive: JobIdHandler, onDelete: JobIdHandler }} */
+    /** @type {{ job: Job, index: number, onToggleReady: JobToggleReadyHandler, onEdit: JobEditHandler, onArchive: JobIdHandler, onDelete: JobIdHandler, onCopy?: (job: Job) => void }} */
     let { 
         job,
         index,
         onToggleReady,
         onEdit,
         onArchive,
-        onDelete
+        onDelete,
+        onCopy
     } = $props();
 
     const db = getFirestore(app);
@@ -176,11 +177,12 @@
     <button 
         class="btn-invoice {job.invoice_ready ? 'btn-invoice-done' : ''}"
         onclick={() => onToggleReady("invoice", job.id, Boolean(job.invoice_ready))}
+        title={job.invoice_ready ? 'Rechnung erstellt' : 'Rechnung erstellen'}
     >
         {job.invoice_ready ? '✓ Rechnung' : 'Rechnung'}
     </button>
 
-    <button class="btn-edit" onclick={() => onEdit(job, index)}>
+    <button class="btn-edit" onclick={() => onEdit(job, index)} title="Bearbeiten">
         B
     </button>
 
@@ -192,9 +194,14 @@
     >
         Bezahlt?
     </button>
-    <button onclick={() => onDelete(job.id)}>
+    <button class="btn-delete" onclick={() => onDelete(job.id)} title="Auftrag löschen">
         Löschen
     </button>
+    {#if onCopy}
+        <button class="btn-copy" onclick={() => onCopy(job)} title="Als neuen Auftrag kopieren">
+            K
+        </button>
+    {/if}
 </div>
 
 <style>
@@ -208,7 +215,7 @@
             minmax(150px, 1fr)    /* Details */
             150px          /* Betrag + MwSt. */
             80px           /* Produzent */
-            88px 44px 88px 88px;  /* 4 Buttons: Rechnung, B, Bezahlt?, Löschen */
+            88px 44px 88px 88px 44px;  /* 5 Buttons: Rechnung, B, Bezahlt?, Löschen, K */
         gap: 8px;
         align-items: center;
         background: var(--color-white);
@@ -350,12 +357,12 @@
     }
 
     .btn-edit {
-        background: var(--color-primary);
+        background: var(--color-warning);
         color: white;
     }
 
     .btn-edit:hover {
-        background: var(--color-primary-hover, #4f46e5);
+        background: var(--color-warning-hover);
     }
 
     .btn-invoice {
@@ -375,22 +382,22 @@
         background: #059669 !important;
     }
 
-    button:nth-of-type(2) {
-        background: var(--color-info);
-        color: white;
-    }
-
-    button:nth-of-type(2):hover {
-        background: var(--color-info-hover);
-    }
-
-    button:nth-of-type(3) {
+    .btn-delete {
         background: var(--color-danger);
         color: white;
     }
 
-    button:nth-of-type(3):hover {
+    .btn-delete:hover {
         background: var(--color-danger-hover);
+    }
+
+    .btn-copy {
+        background: var(--color-info);
+        color: white;
+    }
+
+    .btn-copy:hover {
+        background: var(--color-info-hover);
     }
 
     /* Bezahlt?-Button: Farbe abhängig vom Rechnungsalter */
