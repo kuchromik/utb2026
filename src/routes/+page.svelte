@@ -17,6 +17,7 @@
     import ArchiveListHeader from '$lib/components/ArchiveListHeader.svelte';
     import ShippedConfirmModal from '$lib/components/ShippedConfirmModal.svelte';
     import InvoiceConfirmModal from '$lib/components/InvoiceConfirmModal.svelte';
+    import MahnungConfirmModal from '$lib/components/MahnungConfirmModal.svelte';
     import DataCheckedModal from '$lib/components/DataCheckedModal.svelte';
 
     /** @typedef {import('$lib/types').Customer} Customer */
@@ -83,6 +84,11 @@
     let paidArchiveMessage = $state('');
     let showFinishedDeleteModal = $state(false);
     let finishedDeleteMessage = $state('');
+    let showReminderModal = $state(false);
+    /** @type {Job | null} */
+    let jobForReminder = $state(null);
+    /** @type {Customer | null} */
+    let customerForReminder = $state(null);
     
     // Edit mode (aktive Aufträge)
     /** @type {Job | null} */
@@ -1015,6 +1021,50 @@
     }
 
     /** @param {string} jobId */
+    function openReminderModal(jobId) {
+        const job = finishedJobs.find(j => j.id === jobId);
+        if (!job) return;
+        const customer = customers.find(c => c.id === job.customerId) ??
+            customers.find(c => getCustomerLabel(c) === job.customer) ?? null;
+        jobForReminder = job;
+        customerForReminder = customer;
+        showReminderModal = true;
+    }
+
+    async function sendReminder() {
+        if (!jobForReminder || !customerForReminder) return;
+        try {
+            const response = await fetch('/api/send-reminder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ job: jobForReminder, customer: customerForReminder })
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Fehler beim Versand der Mahnung');
+            }
+            const data = await response.json();
+            const reminderDate = Math.floor(Date.now() / 1000);
+            const jobRef = doc(db, "Jobs", jobForReminder.id);
+            await updateDoc(jobRef, { reminderDate });
+            alert(`Zahlungserinnerung für Rechnung Nr. ${jobForReminder.invoiceNumber} wurde erfolgreich an ${data.invoiceEmail} versendet.\n\nEine Kopie wurde an remindlog@online.de gesendet.`);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            alert('Fehler beim Versand der Mahnung: ' + errorMessage);
+        } finally {
+            showReminderModal = false;
+            jobForReminder = null;
+            customerForReminder = null;
+        }
+    }
+
+    function cancelReminder() {
+        showReminderModal = false;
+        jobForReminder = null;
+        customerForReminder = null;
+    }
+
+    /** @param {string} jobId */
     function confirmFinishedDeleteJob(jobId) {
         const job = finishedJobs.find(j => j.id === jobId);
         deleteJobId = jobId;
@@ -1395,6 +1445,7 @@
                         onEdit={openFinishedEditMode}
                         onArchive={confirmPaidArchiveJob}
                         onDelete={confirmFinishedDeleteJob}
+                        onReminder={openReminderModal}
                         onCopy={copyJob}
                     />
 
@@ -1511,6 +1562,14 @@
     bind:selectedAdditionalJobIds={selectedAdditionalJobIds}
     onConfirm={createAndSendInvoice}
     onCancel={cancelInvoice}
+/>
+
+<MahnungConfirmModal
+    bind:show={showReminderModal}
+    job={jobForReminder ?? undefined}
+    customer={customerForReminder ?? undefined}
+    onConfirm={sendReminder}
+    onCancel={cancelReminder}
 />
 
 {#if showDataCheckedModal && jobForDataChecked}

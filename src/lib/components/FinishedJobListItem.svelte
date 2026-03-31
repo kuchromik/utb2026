@@ -8,7 +8,7 @@
     /** @typedef {import('$lib/types').JobIdHandler} JobIdHandler */
     /** @typedef {import('$lib/types').ShipmentAddress} ShipmentAddress */
 
-    /** @type {{ job: Job, index: number, onToggleReady: JobToggleReadyHandler, onEdit: JobEditHandler, onArchive: JobIdHandler, onDelete: JobIdHandler, onCopy?: (job: Job) => void }} */
+    /** @type {{ job: Job, index: number, onToggleReady: JobToggleReadyHandler, onEdit: JobEditHandler, onArchive: JobIdHandler, onDelete: JobIdHandler, onReminder?: JobIdHandler, onCopy?: (job: Job) => void }} */
     let { 
         job,
         index,
@@ -16,6 +16,7 @@
         onEdit,
         onArchive,
         onDelete,
+        onReminder,
         onCopy
     } = $props();
 
@@ -123,6 +124,16 @@
               }`
             : 'Noch keine Rechnung erstellt'
     );
+
+    const reminderSent = $derived(Boolean(job.reminderDate));
+
+    const reminderTitle = $derived(
+        !invoiceOverdue
+            ? 'Mahnungsversand erst nach Ablauf der 14-tägigen Zahlungsfrist möglich'
+            : reminderSent
+                ? `Mahnung geschrieben am ${new Date(/** @type {number} */ (job.reminderDate) * 1000).toLocaleDateString('de-DE')} – erneut versenden?`
+                : 'Zahlungserinnerung versenden'
+    );
 </script>
 
 <div class="finished-joblist {index % 2 === 0 ? 'secondRow' : ''} {job.FixGuenstig ? 'fixguenstig' : ''}">
@@ -194,6 +205,14 @@
     >
         Bezahlt?
     </button>
+    <button
+        class="btn-reminder {!invoiceOverdue ? 'btn-reminder-ghost' : reminderSent ? 'btn-reminder-sent' : 'btn-reminder-active'}"
+        title={reminderTitle}
+        disabled={!invoiceOverdue}
+        onclick={() => onReminder && onReminder(job.id)}
+    >
+        Mahnung
+    </button>
     <button class="btn-delete" onclick={() => onDelete(job.id)} title="Auftrag löschen">
         Löschen
     </button>
@@ -212,10 +231,10 @@
             130px          /* Kunde */
             150px          /* Jobname */
             90px           /* Menge */
-            minmax(150px, 1fr)    /* Details */
+            minmax(80px, 1fr)     /* Details */
             150px          /* Betrag + MwSt. */
             80px           /* Produzent */
-            88px 44px 88px 88px 44px;  /* 5 Buttons: Rechnung, B, Bezahlt?, Löschen, K */
+            88px 44px 80px 80px 80px 44px;  /* 6 Buttons: Rechnung, B, Bezahlt?, Mahnung, Löschen, K */
         gap: 8px;
         align-items: center;
         background: var(--color-white);
@@ -426,6 +445,33 @@
 
     .btn-paid-overdue:hover {
         background: var(--color-danger-hover) !important;
+    }
+
+    .btn-reminder {
+        color: white;
+    }
+
+    .btn-reminder-ghost {
+        background: #9ca3af !important;
+        color: #f3f4f6 !important;
+        cursor: not-allowed !important;
+        opacity: 0.65;
+    }
+
+    .btn-reminder-active {
+        background: #991b1b !important;
+    }
+
+    .btn-reminder-active:hover {
+        background: #7f1d1d !important;
+    }
+
+    .btn-reminder-sent {
+        background: #b45309 !important;
+    }
+
+    .btn-reminder-sent:hover {
+        background: #92400e !important;
     }
 
     p {
