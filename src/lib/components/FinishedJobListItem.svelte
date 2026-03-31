@@ -200,7 +200,6 @@
     <button
         class="btn-paid {!hasInvoice ? 'btn-paid-none' : invoiceOverdue ? 'btn-paid-overdue' : 'btn-paid-pending'}"
         title={invoicePaidTitle}
-        disabled={!hasInvoice}
         onclick={() => onArchive(job.id)}
     >
         Bezahlt?

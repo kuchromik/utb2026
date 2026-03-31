@@ -1047,6 +1047,9 @@
             const reminderDate = Math.floor(Date.now() / 1000);
             const jobRef = doc(db, "Jobs", jobForReminder.id);
             await updateDoc(jobRef, { reminderDate });
+            // Optimistic local update so the button color changes immediately
+            const updatedJobId = jobForReminder.id;
+            finishedJobs = finishedJobs.map(j => j.id === updatedJobId ? { ...j, reminderDate } : j);
             alert(`Zahlungserinnerung für Rechnung Nr. ${jobForReminder.invoiceNumber} wurde erfolgreich an ${data.invoiceEmail} versendet.\n\nEine Kopie wurde an remindlog@online.de gesendet.`);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
