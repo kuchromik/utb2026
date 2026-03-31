@@ -983,8 +983,9 @@
         const job = finishedJobs.find(j => j.id === jobId);
         if (!job) return;
         const net = Number(job.amount) || 0;
+        const shippingCosts = Number(job.shippingCosts) || 0;
         const vatRate = job.vatRate ?? 19;
-        const total = net * (1 + vatRate / 100);
+        const total = (net + shippingCosts) * (1 + vatRate / 100);
         const totalFormatted = total.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         paidArchiveMessage = `Hat der Kunde den Betrag von ${totalFormatted} Euro (inkl. ${vatRate}% MwSt.) bezahlt?\n\nDer Auftrag wird anschließend ins Archiv verschoben.`;
         archiveJobId = jobId;
