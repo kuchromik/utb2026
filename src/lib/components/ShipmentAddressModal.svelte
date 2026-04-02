@@ -3,7 +3,7 @@
     import { getFirestore, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
     import { app } from '$lib/FireBase.js';
 
-    /** @typedef {{ name?: string, street?: string, zip?: string, city?: string, countryCode?: string }} ShipmentAddressValue */
+    /** @typedef {{ id?: string, name?: string, street?: string, zip?: string, city?: string, countryCode?: string }} ShipmentAddressValue */
     /** @typedef {import('$lib/types').ShipmentAddress} ShipmentAddress */
 
     /** @type {{ show?: boolean, customerId?: string, initialValue?: ShipmentAddressValue, onSave: (value: ShipmentAddressValue) => void, onCancel?: (() => void) | null }} */
@@ -24,6 +24,18 @@
     let existingAddresses = $state([]);
     let loadingAddresses = $state(false);
 
+    /** @type {ShipmentAddress | null} */
+    let selectedAddress = $state(/** @type {ShipmentAddress | null} */(null));
+
+    const isUnmodified = $derived(
+        selectedAddress !== null &&
+        localValue.name === (selectedAddress.name ?? '') &&
+        localValue.street === (selectedAddress.street ?? '') &&
+        localValue.zip === (selectedAddress.zip ?? '') &&
+        localValue.city === (selectedAddress.city ?? '') &&
+        localValue.countryCode === (selectedAddress.countryCode ?? 'DE')
+    );
+
     /** @type {HTMLInputElement | undefined} */
     let nameRef = $state(undefined);
 
@@ -36,10 +48,12 @@
                 city: initialValue.city ?? '',
                 countryCode: initialValue.countryCode ?? 'DE'
             };
+            selectedAddress = null;
             loadExistingAddresses();
             tick().then(() => nameRef?.focus());
         } else {
             existingAddresses = [];
+            selectedAddress = null;
         }
     });
 
@@ -64,6 +78,7 @@
 
     /** @param {ShipmentAddress} addr */
     function selectExisting(addr) {
+        selectedAddress = addr;
         localValue = {
             name: addr.name ?? '',
             street: addr.street ?? '',
@@ -83,7 +98,8 @@
     }
 
     function handleSave() {
-        onSave({ ...localValue });
+        const id = isUnmodified && selectedAddress?.id ? selectedAddress.id : undefined;
+        onSave(id ? { ...localValue, id } : { ...localValue });
         show = false;
     }
 

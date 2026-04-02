@@ -38,6 +38,7 @@ export type ShipmentAddress = {
 };
 
 export type ShipmentAddressInput = {
+    id?: string;
     name?: string;
     street?: string;
     zip?: string;

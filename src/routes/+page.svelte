@@ -931,7 +931,6 @@
 
         const sa = jobData.shipmentAddress;
         if (sa && (sa.name || sa.street || sa.zip || sa.city)) {
-            const saRef = doc(collection(db, 'shipmentAddresses'));
             const saData = {
                 name: sa.name || '',
                 street: sa.street || '',
@@ -941,8 +940,14 @@
                 customerId: jobData.customerId,
                 createdAt: Date.now() / 1000
             };
-            await setDoc(saRef, saData);
-            shipmentAddressId = saRef.id;
+            if (sa.id) {
+                // Bestehende Adresse wurde unveraendert uebernommen – kein neues Dokument anlegen
+                shipmentAddressId = sa.id;
+            } else {
+                const saRef = doc(collection(db, 'shipmentAddresses'));
+                await setDoc(saRef, saData);
+                shipmentAddressId = saRef.id;
+            }
             shipmentAddressEmbed = { shipmentAddressId, shipmentAddress: saData };
         }
 
@@ -1256,7 +1261,6 @@
             let shipmentAddressUpdate = {};
             const sa = changedData.shipmentAddress;
             if (sa && (sa.name || sa.street || sa.zip || sa.city)) {
-                const saRef = doc(collection(db, 'shipmentAddresses'));
                 const saData = {
                     name: sa.name || '',
                     street: sa.street || '',
@@ -1266,8 +1270,16 @@
                     customerId: changedData.customerId,
                     createdAt: Date.now() / 1000
                 };
-                await setDoc(saRef, saData);
-                shipmentAddressUpdate = { shipmentAddressId: saRef.id, shipmentAddress: saData };
+                let saId;
+                if (sa.id) {
+                    // Bestehende Adresse wurde unveraendert uebernommen – kein neues Dokument anlegen
+                    saId = sa.id;
+                } else {
+                    const saRef = doc(collection(db, 'shipmentAddresses'));
+                    await setDoc(saRef, saData);
+                    saId = saRef.id;
+                }
+                shipmentAddressUpdate = { shipmentAddressId: saId, shipmentAddress: saData };
             } else {
                 shipmentAddressUpdate = { shipmentAddressId: deleteField(), shipmentAddress: deleteField() };
             }
@@ -1313,7 +1325,6 @@
             let shipmentAddressUpdate = {};
             const sa = changedData.shipmentAddress;
             if (sa && (sa.name || sa.street || sa.zip || sa.city)) {
-                const saRef = doc(collection(db, 'shipmentAddresses'));
                 const saData = {
                     name: sa.name || '',
                     street: sa.street || '',
@@ -1323,8 +1334,16 @@
                     customerId: changedData.customerId,
                     createdAt: Date.now() / 1000
                 };
-                await setDoc(saRef, saData);
-                shipmentAddressUpdate = { shipmentAddressId: saRef.id, shipmentAddress: saData };
+                let saId;
+                if (sa.id) {
+                    // Bestehende Adresse wurde unveraendert uebernommen – kein neues Dokument anlegen
+                    saId = sa.id;
+                } else {
+                    const saRef = doc(collection(db, 'shipmentAddresses'));
+                    await setDoc(saRef, saData);
+                    saId = saRef.id;
+                }
+                shipmentAddressUpdate = { shipmentAddressId: saId, shipmentAddress: saData };
             } else {
                 shipmentAddressUpdate = { shipmentAddressId: deleteField(), shipmentAddress: deleteField() };
             }
