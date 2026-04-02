@@ -2,6 +2,7 @@
     import { onDestroy } from 'svelte';
     import { app, auth } from '$lib/FireBase.js';
     import { getFirestore, collection, onSnapshot, query, where, doc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, deleteField } from 'firebase/firestore';
+    import { getStorage, ref as storageRef, getDownloadURL } from 'firebase/storage';
     import { signInWithEmailAndPassword, signOut } from "firebase/auth";
     
     // Import components
@@ -30,6 +31,13 @@
     let loggedIn = $state(false);
     let showArchiv = $state(false);
     let showFinished = $state(false);
+    let showInvoicesList = $state(false);
+    /** @type {Job[]} */
+    let sentInvoices = $state([]);
+    let sentInvoicesLoading = $state(false);
+    let sentInvoicesVatFilter = $state('');
+
+    const storage = getStorage(app);
     /** @type {Customer[]} */
     let customers = $state([]);
     /** @type {Job[]} */
@@ -495,6 +503,60 @@
         }, (error) => {
             console.error("Error fetching finished jobs:", error);
         });
+    }
+
+    async function loadSentInvoices() {
+        sentInvoicesLoading = true;
+        try {
+            const now = new Date();
+            // Erster Tag des Vormonats als untere Grenze
+            const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const startTimestamp = startOfPrevMonth.getTime() / 1000;
+
+            const q = query(
+                collection(db, 'Jobs'),
+                where('invoice_ready', '==', true)
+            );
+            const snap = await getDocs(q);
+            /** @type {Job[]} */
+            const result = [];
+            snap.forEach((d) => {
+                const data = /** @type {Job} */ ({ id: d.id, ...d.data() });
+                // Nur Rechnungen aus aktuellem und vorherigem Monat
+                if ((data.invoiceDate ?? 0) >= startTimestamp) {
+                    result.push(data);
+                }
+            });
+            result.sort((a, b) => (b.invoiceDate ?? 0) - (a.invoiceDate ?? 0));
+            sentInvoices = result;
+        } catch (err) {
+            console.error('Fehler beim Laden der Rechnungen:', err);
+        } finally {
+            sentInvoicesLoading = false;
+        }
+    }
+
+    /** @param {Job} job */
+    async function openInvoicePdf(job) {
+        if (!job.invoiceNumber) return;
+        const year = job.invoiceDate ? new Date(job.invoiceDate * 1000).getFullYear() : new Date().getFullYear();
+        // Dateiname rekonstruieren – entspricht der Logik in create-invoice/+server.js
+        const safeName = (job.jobname ?? '').replace(/[^a-zA-Z0-9]/g, '_');
+        const fileName = `Rechnung_${job.invoiceNumber}_${safeName}.pdf`;
+        const path = `invoices/${year}/${fileName}`;
+        try {
+            const fileRef = storageRef(storage, path);
+            const url = await getDownloadURL(fileRef);
+            window.open(url, '_blank', 'noopener,noreferrer');
+        } catch {
+            alert(`PDF konnte nicht geladen werden.\nErwarteter Pfad: ${path}`);
+        }
+    }
+
+    /** @returns {Job[]} */
+    function getFilteredInvoices() {
+        if (!sentInvoicesVatFilter) return sentInvoices;
+        return sentInvoices.filter(j => String(j.vatRate) === sentInvoicesVatFilter);
     }
 
     /** @param {ReadyType} whatsIsReady @param {string} ID @param {boolean} isReady */
@@ -1412,9 +1474,14 @@
 
         <div class="section-header">
             <h2>{jobs.length} aktive Aufträge:</h2>
-            <button class="finished-btn" onclick={() => {showFinished = true;}}>
-                ✓ Fertige Aufträge anzeigen ({finishedJobs.length})
-            </button>
+            <div class="section-header-buttons">
+                <button class="finished-btn" onclick={() => {showFinished = true;}}>
+                    ✓ Fertige Aufträge anzeigen ({finishedJobs.length})
+                </button>
+                <button class="invoices-list-btn" onclick={() => { showInvoicesList = true; loadSentInvoices(); }}>
+                    📄 Versendete Rechnungen anzeigen
+                </button>
+            </div>
         </div>
         <ul>
             {#each jobs as job, index (job.id)}
@@ -1566,6 +1633,100 @@
     customer={customerToEdit}
     onComplete={updateCustomer}
 />
+
+{#if showInvoicesList}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="modal-overlay" onclick={() => { showInvoicesList = false; }} role="presentation">
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+        <div class="invoices-list-modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div class="invoices-list-header">
+                <h2>📄 Versendete Rechnungen</h2>
+                <button class="invoices-list-close" onclick={() => { showInvoicesList = false; }}>✕ Schließen</button>
+            </div>
+            <p class="invoices-list-subtitle">Aktueller und vorhergehender Monat, neueste zuerst</p>
+
+            <div class="invoices-list-filter">
+                <label for="vat-filter">MwSt.-Satz filtern:</label>
+                <select id="vat-filter" bind:value={sentInvoicesVatFilter}>
+                    <option value="">Alle</option>
+                    {#each [...new Set(sentInvoices.map(j => String(j.vatRate ?? 19)))].sort() as rate}
+                        <option value={rate}>{rate} %</option>
+                    {/each}
+                </select>
+                {#if !sentInvoicesLoading}
+                    <span class="invoices-list-count">{getFilteredInvoices().length} Rechnung{getFilteredInvoices().length !== 1 ? 'en' : ''}</span>
+                {/if}
+            </div>
+
+            {#if sentInvoicesLoading}
+                <p class="invoices-list-loading">Lade Rechnungen…</p>
+            {:else if getFilteredInvoices().length === 0}
+                <p class="invoices-list-empty">Keine Rechnungen im Zeitraum gefunden.</p>
+            {:else}
+                <div class="invoices-table-wrap">
+                    <table class="invoices-table">
+                        <thead>
+                            <tr>
+                                <th>Rechnungsnr.</th>
+                                <th>Kunde / Auftrag</th>
+                                <th>Rechnungsdatum</th>
+                                <th>Bezahlt am</th>
+                                <th>MwSt.</th>
+                                <th class="num">Netto</th>
+                                <th class="num">Brutto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {#each getFilteredInvoices() as inv (inv.id)}
+                                {@const vatRate = Number(inv.vatRate) || 19}
+                                {@const netto = parseFloat((Number(inv.amount) + Math.max(0, Number(inv.shippingCosts) || 0)).toFixed(2))}
+                                {@const brutto = parseFloat((netto * (1 + vatRate / 100)).toFixed(2))}
+                                {@const fmt = (/** @type {number} */ n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                <tr>
+                                    <td>
+                                        {#if inv.invoiceNumber}
+                                            <button class="inv-number-btn" onclick={() => openInvoicePdf(inv)}>
+                                                {inv.invoiceNumber}
+                                            </button>
+                                        {:else}
+                                            –
+                                        {/if}
+                                    </td>
+                                    <td class="inv-customer-col">
+                                        <span class="inv-customer">{inv.customer}</span>
+                                        <span class="inv-jobname">{inv.jobname}</span>
+                                    </td>
+                                    <td>{inv.invoiceDate ? new Date(inv.invoiceDate * 1000).toLocaleDateString('de-DE') : '–'}</td>
+                                    <td>{#if inv.payDate}{new Date(inv.payDate * 1000).toLocaleDateString('de-DE')}{:else}<span class="inv-unpaid">Offen</span>{/if}</td>
+                                    <td class="num">{vatRate} %</td>
+                                    <td class="num">{fmt(netto)} €</td>
+                                    <td class="num inv-brutto">{fmt(brutto)} €</td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+                {@const visible = getFilteredInvoices()}
+                {@const totalNetto = parseFloat(visible.reduce((s, j) => s + Number(j.amount) + Math.max(0, Number(j.shippingCosts) || 0), 0).toFixed(2))}
+                {@const effectiveVat = sentInvoicesVatFilter ? Number(sentInvoicesVatFilter) : (Number(visible[0]?.vatRate) || 19)}
+                {@const totalBrutto = parseFloat((totalNetto * (1 + effectiveVat / 100)).toFixed(2))}
+                <div class="invoices-sum-row">
+                    <span>Summe ({visible.length} Rechnung{visible.length !== 1 ? 'en' : ''})</span>
+                    <span>Netto: <strong>{totalNetto.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong></span>
+                    <span>Brutto: <strong>{totalBrutto.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong></span>
+                    {#if sentInvoicesVatFilter}
+                        <span class="invoices-sum-note">(MwSt. {sentInvoicesVatFilter} %)</span>
+                    {:else}
+                        <span class="invoices-sum-note">⚠️ Nur bei einheitlichem MwSt.-Satz aussagekräftig</span>
+                    {/if}
+                </div>
+            {/if}
+        </div>
+    </div>
+{/if}
 
 {#if showShippedConfirmModal && jobForShippedConfirm}
     <ShippedConfirmModal
@@ -1832,5 +1993,184 @@
 
     .finished-header button:hover {
         background: #059669;
+    }
+
+    .section-header-buttons {
+        display: flex;
+        gap: var(--spacing-sm);
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .invoices-list-btn {
+        background: #6b7280;
+        color: white;
+        white-space: nowrap;
+    }
+
+    .invoices-list-btn:hover {
+        background: #4b5563;
+    }
+
+    /* Invoices list modal */
+    .invoices-list-modal {
+        background: #fff;
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-xl);
+        width: min(960px, 96vw);
+        max-height: 88vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+
+    .invoices-list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .invoices-list-header h2 {
+        margin: 0;
+    }
+
+    .invoices-list-close {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .invoices-list-close:hover {
+        background: #d1d5db;
+    }
+
+    .invoices-list-subtitle {
+        margin: 0;
+        color: #6b7280;
+        font-size: var(--font-size-sm);
+    }
+
+    .invoices-list-filter {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        flex-wrap: wrap;
+    }
+
+    .invoices-list-filter label {
+        font-weight: 600;
+        font-size: var(--font-size-sm);
+    }
+
+    .invoices-list-filter select {
+        padding: 4px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-sm);
+    }
+
+    .invoices-list-count {
+        margin-left: auto;
+        font-size: var(--font-size-sm);
+        color: #6b7280;
+    }
+
+    .invoices-list-loading,
+    .invoices-list-empty {
+        color: #6b7280;
+        text-align: center;
+        padding: var(--spacing-xl);
+    }
+
+    .invoices-table-wrap {
+        overflow-x: auto;
+    }
+
+    .invoices-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--font-size-sm);
+    }
+
+    .invoices-table th {
+        background: #f3f4f6;
+        padding: 8px 10px;
+        text-align: left;
+        border-bottom: 2px solid #e5e7eb;
+        white-space: nowrap;
+    }
+
+    .invoices-table th.num,
+    .invoices-table td.num {
+        text-align: right;
+    }
+
+    .invoices-table td {
+        padding: 7px 10px;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: top;
+    }
+
+    .invoices-table tbody tr:hover {
+        background: #f9fafb;
+    }
+
+    .inv-number-btn {
+        background: none;
+        color: #2563eb;
+        text-decoration: underline;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: var(--font-size-sm);
+    }
+
+    .inv-number-btn:hover {
+        color: #1d4ed8;
+    }
+
+    .inv-customer-col {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .inv-customer {
+        font-weight: 600;
+    }
+
+    .inv-jobname {
+        color: #6b7280;
+        font-size: 0.85em;
+    }
+
+    .inv-unpaid {
+        color: #dc2626;
+        font-style: italic;
+    }
+
+    .inv-brutto {
+        font-weight: 600;
+    }
+
+    .invoices-sum-row {
+        display: flex;
+        gap: var(--spacing-md);
+        align-items: center;
+        padding: var(--spacing-sm) var(--spacing-md);
+        background: #f3f4f6;
+        border-radius: var(--radius-sm);
+        border-top: 2px solid #e5e7eb;
+        flex-wrap: wrap;
+        font-size: var(--font-size-sm);
+    }
+
+    .invoices-sum-note {
+        color: #6b7280;
+        font-size: 0.85em;
+        margin-left: auto;
     }
 </style>
