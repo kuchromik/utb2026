@@ -22,6 +22,15 @@
         return selectedContact?.invoiceMail || customer.invoiceMail || job.billingEmail || job.contactEmail || customer.email || '';
     }
 
+    function getSalutationName() {
+        if (!customer || !job) return '';
+        if (job.contactEmail && customer.contacts) {
+            const contact = customer.contacts.find(/** @param {any} c */ c => c.email === job.contactEmail);
+            if (contact) return `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+        }
+        return `${customer.firstName || ''} ${customer.lastName || ''}`.trim();
+    }
+
     function getCustomerName() {
         if (!customer) return '';
         const company = customer.company?.trim();
@@ -219,13 +228,19 @@
                         <strong>📧 E-Mail Adresse:</strong>
                         <span class="email">{getInvoiceEmail()}</span>
                     </div>
-                    
+                    <div class="detail-row">
+                        <strong>✉️ Anrede in E-Mail:</strong>
+                        <span>Hallo <strong>{getSalutationName()}</strong>,</span>
+                    </div>
                     {#if job.billingEmail}
                         <p class="info-note warning">⚠️ Rechnung wird an abweichende E-Mail-Adresse gesendet</p>
                     {:else if customer.invoiceMail}
                         <p class="info-note">✓ Rechnung wird an separate Rechnungsadresse gesendet</p>
                     {:else}
                         <p class="info-note">ℹ️ Rechnung wird an Standard-E-Mail gesendet</p>
+                    {/if}
+                    {#if job.contactEmail && customer?.contacts?.find((/** @type {any} */ c) => c.email === job.contactEmail)}
+                        <p class="info-note">👤 Abweichender Ansprechpartner wird in der Anrede verwendet</p>
                     {/if}
                 </div>
 

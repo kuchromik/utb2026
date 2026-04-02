@@ -223,7 +223,16 @@ export async function POST({ request }) {
             const emailMwst = parseFloat((emailNettosumme * displayVat / 100).toFixed(2));
             const emailGesamt = parseFloat((emailNettosumme + emailMwst).toFixed(2));
             const displayAmount = emailGesamt.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const salutationName = `${customer.firstName || ''} ${customer.lastName || ''}`.trim();
+            const salutationName = (() => {
+                const contactEmail = jobs[0].contactEmail;
+                if (contactEmail && customer.contacts) {
+                    const contact = customer.contacts.find(/** @param {any} c */ c => c.email === contactEmail);
+                    if (contact) {
+                        return `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+                    }
+                }
+                return `${customer.firstName || ''} ${customer.lastName || ''}`.trim();
+            })();
             const isSammelrechnung = jobs.length > 1;
             const jobNamesForEmail = jobs.map(j => j.jobname).join(', ');
             const jobDescriptionText = isSammelrechnung
