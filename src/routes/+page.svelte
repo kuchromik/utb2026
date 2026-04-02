@@ -1637,7 +1637,7 @@
 {#if showInvoicesList}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="modal-overlay" onclick={() => { showInvoicesList = false; }} role="presentation">
+    <div class="invoices-overlay" onclick={() => { showInvoicesList = false; }} role="presentation">
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -2000,6 +2000,20 @@
         gap: var(--spacing-sm);
         align-items: center;
         flex-wrap: wrap;
+    }
+
+    .invoices-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        backdrop-filter: blur(4px);
     }
 
     .invoices-list-btn {
