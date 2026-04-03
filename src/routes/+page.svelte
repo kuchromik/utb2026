@@ -36,6 +36,13 @@
     let sentInvoices = $state([]);
     let sentInvoicesLoading = $state(false);
     let sentInvoicesVatFilter = $state('');
+    let paymentExportMonth = $state((() => {
+        const now = new Date();
+        const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    })());
+    let paymentExportLoading = $state(false);
+    let paymentExportStatus = $state('');
 
     const storage = getStorage(app);
     /** @type {Customer[]} */
@@ -550,6 +557,89 @@
             window.open(url, '_blank', 'noopener,noreferrer');
         } catch {
             alert(`PDF konnte nicht geladen werden.\nErwarteter Pfad: ${path}`);
+        }
+    }
+
+    async function exportPaymentPdfs() {
+        if (!paymentExportMonth) return;
+
+        if (!('showDirectoryPicker' in window)) {
+            alert('Ihr Browser unterstützt die direkte Ordnerauswahl nicht.\nBitte Chrome oder Edge verwenden.');
+            return;
+        }
+
+        const [expYear, expMonth] = paymentExportMonth.split('-').map(Number);
+        const startTs = new Date(expYear, expMonth - 1, 1).getTime() / 1000;
+        const endTs = new Date(expYear, expMonth, 1).getTime() / 1000;
+
+        paymentExportLoading = true;
+        paymentExportStatus = 'Lade Zahlungsdaten…';
+
+        try {
+            const q = query(
+                collection(db, 'Jobs'),
+                where('invoice_ready', '==', true),
+                where('payDate', '>=', startTs),
+                where('payDate', '<', endTs)
+            );
+            const snap = await getDocs(q);
+
+            /** @type {Job[]} */
+            const paidJobs = snap.docs
+                .map(d => /** @type {Job} */ ({ id: d.id, ...d.data() }))
+                .filter(j => j.invoiceNumber);
+
+            if (paidJobs.length === 0) {
+                paymentExportStatus = 'Keine bezahlten Rechnungen mit PDF in diesem Monat gefunden.';
+                return;
+            }
+
+            let dirHandle;
+            try {
+                dirHandle = await /** @type {any} */ (window).showDirectoryPicker({ mode: 'readwrite' });
+            } catch {
+                // Nutzer hat den Dialog abgebrochen
+                paymentExportStatus = '';
+                return;
+            }
+
+            paymentExportStatus = `0 / ${paidJobs.length} PDFs werden geladen…`;
+            let done = 0;
+            let errors = 0;
+
+            for (const job of paidJobs) {
+                const invYear = job.invoiceDate ? new Date(job.invoiceDate * 1000).getFullYear() : expYear;
+                const safeName = (job.jobname ?? '').replace(/[^a-zA-Z0-9]/g, '_');
+                const fileName = `Rechnung_${job.invoiceNumber}_${safeName}.pdf`;
+                const path = `invoices/${invYear}/${fileName}`;
+                try {
+                    const fileRef = storageRef(storage, path);
+                    const url = await getDownloadURL(fileRef);
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const blob = await response.blob();
+                    const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    done++;
+                } catch (e) {
+                    console.error('Fehler bei PDF:', fileName, e);
+                    errors++;
+                }
+                paymentExportStatus = `${done} / ${paidJobs.length} PDFs gespeichert${errors > 0 ? ` (${errors} Fehler)` : ''}…`;
+            }
+
+            if (errors > 0) {
+                paymentExportStatus = `Fertig: ${done} PDFs gespeichert, ${errors} konnten nicht geladen werden.`;
+            } else {
+                paymentExportStatus = `✓ ${done} PDF${done !== 1 ? 's' : ''} erfolgreich im Ordner gespeichert.`;
+            }
+        } catch (err) {
+            console.error('Fehler beim PDF-Export:', err);
+            paymentExportStatus = 'Fehler beim Export. Bitte erneut versuchen.';
+        } finally {
+            paymentExportLoading = false;
         }
     }
 
@@ -1661,6 +1751,26 @@
                 {/if}
             </div>
 
+            <div class="payment-export-bar">
+                <label for="payment-export-month">Zahlungseingänge exportieren:</label>
+                <input
+                    id="payment-export-month"
+                    type="month"
+                    bind:value={paymentExportMonth}
+                    disabled={paymentExportLoading}
+                />
+                <button
+                    class="payment-export-btn"
+                    onclick={exportPaymentPdfs}
+                    disabled={paymentExportLoading || !paymentExportMonth}
+                >
+                    {paymentExportLoading ? 'Wird geladen…' : '⬇ PDFs in Ordner speichern'}
+                </button>
+                {#if paymentExportStatus}
+                    <span class="payment-export-status">{paymentExportStatus}</span>
+                {/if}
+            </div>
+
             {#if sentInvoicesLoading}
                 <p class="invoices-list-loading">Lade Rechnungen…</p>
             {:else if getFilteredInvoices().length === 0}
@@ -2089,6 +2199,57 @@
         margin-left: auto;
         font-size: var(--font-size-sm);
         color: #6b7280;
+    }
+
+    .payment-export-bar {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        flex-wrap: wrap;
+        padding: var(--spacing-sm) var(--spacing-md);
+        background: #f0f4ff;
+        border: 1px solid #c7d2fe;
+        border-radius: var(--radius-sm);
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .payment-export-bar label {
+        font-weight: 600;
+        font-size: var(--font-size-sm);
+        white-space: nowrap;
+    }
+
+    .payment-export-bar input[type="month"] {
+        padding: 4px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-sm);
+    }
+
+    .payment-export-btn {
+        padding: 5px 14px;
+        background: #4f46e5;
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .payment-export-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
+
+    .payment-export-btn:not(:disabled):hover {
+        background: #4338ca;
+    }
+
+    .payment-export-status {
+        font-size: var(--font-size-sm);
+        color: #374151;
     }
 
     .invoices-list-loading,
