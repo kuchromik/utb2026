@@ -613,9 +613,7 @@
                 const fileName = `Rechnung_${job.invoiceNumber}_${safeName}.pdf`;
                 const path = `invoices/${invYear}/${fileName}`;
                 try {
-                    const fileRef = storageRef(storage, path);
-                    const url = await getDownloadURL(fileRef);
-                    const response = await fetch(url);
+                    const response = await fetch(`/api/download-invoice?path=${encodeURIComponent(path)}`);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const blob = await response.blob();
                     const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
