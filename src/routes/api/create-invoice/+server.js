@@ -453,10 +453,10 @@ async function createInvoicePDF(jobs, customer, company, invoiceNumber) {
     yPos += 10;
     */
     // Summentabelle – rechtsbündig ausgerichtet an der Betrag-Spalte der Haupttabelle
-    // Haupttabelle: left=20, Beschreibung=105, Menge=30, Betrag=35 → Betrag beginnt bei x=155
+    // margin.left=120, right=20 → 70mm verfügbar: Label=35mm + Wert=35mm
     autoTable(doc, {
         startY: yPos,
-        margin: { left: 155, right: 20 },
+        margin: { left: 120, right: 20 },
         body: [
             ['Nettobetrag', `${netAmountOnly.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`],
             ...(hasShipping ? [
@@ -468,7 +468,7 @@ async function createInvoicePDF(jobs, customer, company, invoiceNumber) {
         ],
         styles: { fontSize: 10 },
         columnStyles: {
-            0: { fontStyle: 'bold', cellWidth: 30 },
+            0: { fontStyle: 'bold', cellWidth: 35 },
             1: { halign: 'right', cellWidth: 35 }
         },
         theme: 'plain',
