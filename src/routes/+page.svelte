@@ -429,6 +429,19 @@
             // Sortiere nach Rate
             vatRates.sort((a, b) => b.rate - a.rate);
         }, (error) => {
+            const code = /** @type {any} */ (error)?.code;
+            const fallbackRates = [
+                { rate: 19, label: 'Standard (19%)', isDefault: true },
+                { rate: 7, label: 'Ermäßigt (7%)', isDefault: false },
+                { rate: 0, label: 'Steuerfrei (0%)', isDefault: false }
+            ];
+            if (!vatRates.length) {
+                vatRates = fallbackRates;
+            }
+            if (code === 'permission-denied') {
+                console.warn('VAT rates aktuell nicht lesbar, nutze lokale Standardwerte.');
+                return;
+            }
             console.error("Error fetching VAT rates:", error);
         });
     }
@@ -461,6 +474,11 @@
         try {
             await batch.commit();
         } catch (error) {
+            const code = /** @type {any} */ (error)?.code;
+            if (code === 'permission-denied') {
+                console.warn('VAT default rates konnten nicht angelegt werden (permission-denied).');
+                return;
+            }
             console.error('Error creating default VAT rates:', error);
             throw error;
         }

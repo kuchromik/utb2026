@@ -27,8 +27,8 @@ service cloud.firestore {
     
     // Rules for VatRates collection
     match /VatRates/{rateId} {
-      // Only authenticated users can read VAT rates
-      allow read: if isAuthenticated();
+      // VAT-Saetze sind nicht sensibel und duerfen fuer UI-Defaults oeffentlich gelesen werden
+      allow read: if true;
       
       // Only authenticated users can create, update, delete VAT rates
       allow write: if isAuthenticated();
