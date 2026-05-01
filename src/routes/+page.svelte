@@ -547,10 +547,10 @@
     async function openInvoicePdf(job) {
         if (!job.invoiceNumber) return;
         const year = job.invoiceDate ? new Date(job.invoiceDate * 1000).getFullYear() : new Date().getFullYear();
-        // Dateiname rekonstruieren – entspricht der Logik in create-invoice/+server.js
-        const safeName = (job.jobname ?? '').replace(/[^a-zA-Z0-9]/g, '_');
-        const fileName = `Rechnung_${job.invoiceNumber}_${safeName}.pdf`;
-        const path = `invoices/${year}/${fileName}`;
+        const fallbackSafeName = (job.jobname ?? '').replace(/[^a-zA-Z0-9]/g, '_');
+        const fallbackFileName = `Rechnung_${job.invoiceNumber}_${fallbackSafeName}.pdf`;
+        const invoiceStoragePath = /** @type {any} */ (job).invoiceStoragePath;
+        const path = invoiceStoragePath || `invoices/${year}/${fallbackFileName}`;
         try {
             const fileRef = storageRef(storage, path);
             const url = await getDownloadURL(fileRef);
@@ -609,9 +609,12 @@
 
             for (const job of paidJobs) {
                 const invYear = job.invoiceDate ? new Date(job.invoiceDate * 1000).getFullYear() : expYear;
-                const safeName = (job.jobname ?? '').replace(/[^a-zA-Z0-9]/g, '_');
-                const fileName = `Rechnung_${job.invoiceNumber}_${safeName}.pdf`;
-                const path = `invoices/${invYear}/${fileName}`;
+                const fallbackSafeName = (job.jobname ?? '').replace(/[^a-zA-Z0-9]/g, '_');
+                const fallbackFileName = `Rechnung_${job.invoiceNumber}_${fallbackSafeName}.pdf`;
+                const invoiceFileName = /** @type {any} */ (job).invoiceFileName;
+                const invoiceStoragePath = /** @type {any} */ (job).invoiceStoragePath;
+                const fileName = invoiceFileName || fallbackFileName;
+                const path = invoiceStoragePath || `invoices/${invYear}/${fallbackFileName}`;
                 try {
                     const response = await fetch(`/api/download-invoice?path=${encodeURIComponent(path)}`);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1012,7 +1015,9 @@
                 batch.update(jobRef, {
                     invoice_ready: true,
                     invoiceNumber: invoiceData.invoiceNumber,
-                    invoiceDate: Date.now() / 1000
+                    invoiceDate: Date.now() / 1000,
+                    invoiceFileName: invoiceData.fileName || null,
+                    invoiceStoragePath: invoiceData.storagePath || null
                 });
             }
             await batch.commit();

@@ -82,6 +82,8 @@ export type Job = JobFormData & {
     trackingNumber?: string;
     invoiceNumber?: number;
     invoicePath?: string;
+    invoiceStoragePath?: string;
+    invoiceFileName?: string;
     invoiceDate?: number;
     reminderDate?: number;
     payDate?: number;

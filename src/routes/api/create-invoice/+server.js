@@ -161,6 +161,8 @@ export async function POST({ request }) {
         const invoiceFileName = jobs.length === 1
             ? `Rechnung_${currentInvoiceNumber}_${jobs[0].jobname.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`
             : `Rechnung_${currentInvoiceNumber}_Sammelrechnung_${(customerName || 'Kunde').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+        const invoiceYear = new Date().getFullYear().toString();
+        const storagePath = `invoices/${invoiceYear}/${invoiceFileName}`;
         
         console.log('PDF erstellt:', invoiceFileName);
 
@@ -183,8 +185,6 @@ export async function POST({ request }) {
 
         // PDF in Firebase Storage speichern (Unterordner nach Kalenderjahr)
         try {
-            const year = new Date().getFullYear().toString();
-            const storagePath = `invoices/${year}/${invoiceFileName}`;
             const bucket = storage.bucket();
             const file = bucket.file(storagePath);
             await file.save(pdfBuffer, {
@@ -265,7 +265,8 @@ export async function POST({ request }) {
         return json({
             success: true,
             invoiceNumber: currentInvoiceNumber,
-            fileName: invoiceFileName
+            fileName: invoiceFileName,
+            storagePath
         });
 
     } catch (error) {

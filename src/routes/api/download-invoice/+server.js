@@ -1,7 +1,53 @@
 import { env } from '$env/dynamic/private';
 
+/** @type {any} */
 let storage;
 let isFirebaseInitialized = false;
+
+/** @param {string} inputPath */
+function sanitizePathInput(inputPath) {
+    let path = (inputPath || '').trim();
+
+    // Manche Clients kodieren den Pfad versehentlich doppelt.
+    try {
+        path = decodeURIComponent(path);
+    } catch {
+        // Bereits dekodiert oder ungueltige Escape-Sequenz.
+    }
+
+    // Einheitliche Pfadseparatoren fuer Storage-Objektpfade.
+    path = path.replace(/\\+/g, '/');
+    return path;
+}
+
+/**
+ * @param {any} bucket
+ * @param {string} requestedPath
+ */
+async function resolveFileFromInvoicePrefix(bucket, requestedPath) {
+    const match = requestedPath.match(/^invoices\/(\d{4})\/Rechnung_(\d+)_.*\.pdf$/i);
+    if (!match) return null;
+
+    const [, year, invoiceNumber] = match;
+    const prefix = `invoices/${year}/Rechnung_${invoiceNumber}_`;
+    const [files] = await bucket.getFiles({ prefix });
+    const pdfFiles = files.filter((/** @type {any} */ f) => f.name.toLowerCase().endsWith('.pdf'));
+    if (pdfFiles.length === 0) return null;
+
+    // Rechnungsnummer sollte eindeutig sein; nutze erste PDF-Datei stabil sortiert.
+    pdfFiles.sort((/** @type {any} */ a, /** @type {any} */ b) => a.name.localeCompare(b.name));
+    return pdfFiles[0];
+}
+
+/** @param {string} fileName */
+function buildDownloadHeaders(fileName) {
+    const asciiFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    return {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${asciiFileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+        'Cache-Control': 'private, max-age=300'
+    };
+}
 
 async function initializeFirebaseAdmin() {
     if (isFirebaseInitialized) return true;
@@ -43,10 +89,12 @@ async function initializeFirebaseAdmin() {
 
 /** @type {import('@sveltejs/kit').RequestHandler} */
 export async function GET({ url }) {
-    const path = url.searchParams.get('path');
-    if (!path) {
+    const pathParam = url.searchParams.get('path');
+    if (!pathParam) {
         return new Response('Fehlender Parameter: path', { status: 400 });
     }
+
+    const path = sanitizePathInput(pathParam);
 
     // Sicherheitsprüfung: nur Pfade innerhalb von invoices/ erlaubt
     if (!path.startsWith('invoices/') || path.includes('..')) {
@@ -60,19 +108,28 @@ export async function GET({ url }) {
 
     try {
         const bucket = storage.bucket();
-        const file = bucket.file(path);
-        const [buffer] = await file.download();
+        let file = bucket.file(path);
+        let [exists] = await file.exists();
 
-        // Dateinamen aus dem Pfad extrahieren
-        const fileName = path.split('/').pop() ?? 'rechnung.pdf';
+        if (!exists) {
+            const fallbackFile = await resolveFileFromInvoicePrefix(bucket, path);
+            if (fallbackFile) {
+                file = fallbackFile;
+                exists = true;
+                console.warn('Datei ueber Prefix-Fallback gefunden:', { requested: path, resolved: file.name });
+            }
+        }
+
+        if (!exists) {
+            return new Response('Datei nicht gefunden', { status: 404 });
+        }
+
+        const [buffer] = await file.download();
+        const fileName = file.name.split('/').pop() ?? 'rechnung.pdf';
 
         return new Response(buffer, {
             status: 200,
-            headers: {
-                'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
-                'Cache-Control': 'private, max-age=300'
-            }
+            headers: buildDownloadHeaders(fileName)
         });
     } catch (err) {
         console.error('Fehler beim Laden der Datei:', path, err);
